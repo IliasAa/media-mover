@@ -1,0 +1,10 @@
+APP_NAME = 'Media Mover'
+APP_ICON_PATH = 'icon/data-transfer.ico'
+WINDOW_SIZE = '1000x600'
+ROTATE_DEFAULT = 0
+BACKGROUND_COLOR = '#242424'
+DARK_GREY = '#4a4a4a'
+SLIDER_BG = '#64686b'
+FILE_NAME_DEFAULT = 'No file selected'
+FLIP_OPTIONS = ['None', 'X', 'Y', 'Both']
+SCREEN_OPTIONS = ['Export','Edit']
