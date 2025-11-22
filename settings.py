@@ -1,5 +1,5 @@
 APP_NAME = 'Media Mover'
-APP_ICON_PATH = 'icon/data-transfer.ico'
+APP_ICON_PATH = 'assets/icon/image.png'
 WINDOW_SIZE = '1000x600'
 ROTATE_DEFAULT = 0
 BACKGROUND_COLOR = '#242424'

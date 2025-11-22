@@ -1,23 +1,25 @@
+from tkinter import PhotoImage
 import customtkinter as ctk
-from edit_screen import EditScreen
-from export_screen import ExportScreen
-from image_widgets import ImageImport, ImageOutput, CloseOutput, OpenOutputButton
-from edit_screen import EditScreen
+from screens.edit.edit_screen import EditScreen
+from screens.export.export_screen import ExportScreen
+from screens.edit.image_widgets import ImageImport, ImageOutput, CloseOutput, OpenOutputButton
+from screens.edit.edit_screen import EditScreen
 from PIL import Image, ImageTk, ImageOps
-from menu import OptionsMenu, EditMenu
+from screens.edit.menu import OptionsMenu, EditMenu
 from settings import *
-import test as tst
 import os
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        ctk.set_appearance_mode("light")
+        ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("green")
         self.title(APP_NAME)
         self.geometry(WINDOW_SIZE)
         self.init_parameters()
-        self.iconbitmap(APP_ICON_PATH)
+
+        icon = PhotoImage(file=APP_ICON_PATH)
+        self.iconphoto(False, icon)
         
         # Configure the first row to take up all available vertical space with a weight of 1.
         self.rowconfigure(0, weight=1)
@@ -89,9 +91,7 @@ class App(ctk.CTk):
                 var.trace_add("write", self.setup_edit_menu)
             elif key in ['selected_screen'] and isinstance(var, ctk.Variable):
                 var.trace_add("write", self.selectOtherScreen)
-    
 
-    
     def reinitialize_menu(self):
         self.menu = OptionsMenu(self, self.pos_vars)
     

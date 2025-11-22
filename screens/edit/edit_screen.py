@@ -1,8 +1,7 @@
 import customtkinter as ctk
-from image_widgets import ImageImport, ImageOutput, CloseOutput, OpenOutputButton
+from screens.edit.image_widgets import ImageImport, ImageOutput, CloseOutput, OpenOutputButton
 from PIL import Image, ImageTk, ImageOps
 from settings import *
-import test as tst
 import os
 
 
@@ -48,16 +47,22 @@ class EditScreen(ctk.CTkFrame):
         self.original = Image.open(path)
         self.pos_vars['has_image_selected'].set(True)
         # Set the file name to the last part of the path
-        self.pos_vars["file_name"] = (os.path.basename(path))
+        self.pos_vars["file_name"].set(os.path.basename(path))
         self.image = self.original
         self.image_ratio = self.image.size[0] / self.image.size[1]
         self.image_tk = ImageTk.PhotoImage(self.image)            
         self.image_output = ImageOutput(self, self.resize_image)
         self.close_button = CloseOutput(self, self.close_edit)
+        # Ensure the canvas keeps a reference to the PhotoImage (avoid GC) and
+        # trigger an initial resize/place so the image is visible immediately.
+        # If the canvas hasn't been fully laid out yet, _call_resize_now will
+        # retry shortly until it has a non-zero size.
+        self.image_output._tk_image = self.image_tk
+        self._call_resize_now()
 
     def close_edit(self):
         self.reset_pos_vars()
-    
+
         self.image_output.grid_forget()
         self.close_button.place_forget()
 
@@ -82,7 +87,31 @@ class EditScreen(ctk.CTkFrame):
         self.image_output.delete("all")
         resized_image = self.image.resize((self.image_width, self.image_height))
         self.image_tk = ImageTk.PhotoImage(resized_image)
+        # Keep a reference on the canvas widget to prevent garbage collection
+        # of the PhotoImage which would make the image disappear.
+        self.image_output._tk_image = self.image_tk
         self.image_output.create_image(self.canvas_width / 2, self.canvas_height / 2, image=self.image_tk)
+
+    def _call_resize_now(self):
+        # Wait until the canvas has a usable size and then call resize_image
+        try:
+            w = self.image_output.winfo_width()
+            h = self.image_output.winfo_height()
+        except Exception:
+            w = h = 0
+
+        if w <= 1 or h <= 1:
+            # Try again shortly after layout completes
+            self.after(50, self._call_resize_now)
+            return
+
+        class _E:
+            pass
+
+        e = _E()
+        e.width = w
+        e.height = h
+        self.resize_image(e)
         
     
     def reset_pos_vars(self):
@@ -90,7 +119,7 @@ class EditScreen(ctk.CTkFrame):
         self.pos_vars['show_edit_menu'].set(False)
         self.pos_vars['rotate'].set(ROTATE_DEFAULT)
         self.pos_vars['flip'].set(FLIP_OPTIONS[0])
-        self.pos_vars['file_name'] = (FILE_NAME_DEFAULT)    
+        self.pos_vars['file_name'].set(FILE_NAME_DEFAULT)    
   
          
          

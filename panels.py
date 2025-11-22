@@ -18,8 +18,8 @@ class SliderPanel(Panel):
         self.rotation = rotation
         self.rotation.trace('w', self.update_text)
 
-        ctk.CTkLabel(master=self, text=text).grid(column=0, row=0, sticky='W', padx=5)
-        self.num_label = ctk.CTkLabel(master=self, text=rotation.get())
+        ctk.CTkLabel(master=self, text=text, text_color="white").grid(column=0, row=0, sticky='W', padx=5)
+        self.num_label = ctk.CTkLabel(master=self, text=rotation.get(), text_color="white")
         self.num_label.grid(column=1, row=0, sticky='E', padx=5)
         ctk.CTkSlider(
             master=self, fg_color=SLIDER_BG, variable=rotation, from_= min_value, to=max_value, command= self.update_text

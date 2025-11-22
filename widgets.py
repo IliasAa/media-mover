@@ -1,5 +1,7 @@
 import tkinter
 import customtkinter as ctk
+from controllers.export_controller import ExportController
+from models.file_transfer_props import FileTransferProps
 from panels import *
 
 
@@ -29,27 +31,26 @@ class SelectFileButton(Panel):
             self.entry.insert(0, directory)
 
 class SelectOptions(Panel):
-    def __init__(self, parent, **kwargs):
+    def __init__(self, parent, file_transfer_props: FileTransferProps, **kwargs):
         super().__init__(parent)
         
         self.grid_columnconfigure((0, 1), weight=1, uniform='a')  # Adjusted column weights to balance width
         self.grid_rowconfigure((0, 1), weight=1, uniform='a')
         self.radio_var = tkinter.IntVar(value=0)
         
-        checkbox_1 = ctk.CTkCheckBox(master=self, text="Filter blurry images")
+        checkbox_1 = ctk.CTkCheckBox(master=self, text="Filter blurry images", command=lambda: file_transfer_props.toggle_blurry())
         checkbox_1.grid(row=0, column=0, padx=(10, 20), pady=(5), sticky="nsew")  # Added space between columns
         
-        checkbox_2 = ctk.CTkCheckBox(master=self, text="Create date folders")
+        checkbox_2 = ctk.CTkCheckBox(master=self, text="Create date folders", command=lambda: file_transfer_props.toggle_date_folders())
         checkbox_2.grid(row=0, column=1, padx=(20, 10), pady=(5), sticky="nsew")  # Right column aligned to the right
         
-        checkbox_3 = ctk.CTkCheckBox(master=self, text="Filter lookalikes")
+        checkbox_3 = ctk.CTkCheckBox(master=self, text="Filter lookalikes", command=lambda: file_transfer_props.toggle_lookalikes())
         checkbox_3.grid(row=1, column=0, padx=(10, 20), pady=(5), sticky="nsew")  # Added space between columns
         
-        checkbox_4 = ctk.CTkCheckBox(master=self, text="Save hashes")
+        checkbox_4 = ctk.CTkCheckBox(master=self, text="Save hashes", command=lambda: file_transfer_props.toggle_hashes())
         checkbox_4.grid(row=1, column=1, padx=(20, 10), pady=(5), sticky="nsew")  # Right column aligned to the right
         
-    def radiobutton_event(self):
-        print("radiobutton toggled, current value:", self.radio_var.get())
+        
         
 class SelectFilesOverview(Panel):
     def __init__(self, parent, **kwargs):
@@ -84,7 +85,7 @@ class ActionsButton(Panel):
         
         
 class FilesMenu(Panel):
-    def __init__(self, parent, pos_vars, items, click, **kwargs):
+    def __init__(self, parent, pos_vars ,export_controller: ExportController, **kwargs):
         super().__init__(parent)
         self.pos_vars = pos_vars
         self.grid_columnconfigure(0, weight=1)
@@ -97,25 +98,23 @@ class FilesMenu(Panel):
 
         self.listbox.grid_columnconfigure(0, weight=1)
 
-        self.items = items
+        self.items = export_controller.file_manager_props.items
+        export_controller.on_items_updated = self.update_items
+        self.update_items()
+        
+    def update_items(self):
+        # Clear existing items
+        for widget in self.listbox.winfo_children():
+            widget.destroy()
+        
+        # Add all items
         for i, item in enumerate(self.items):
-            row_frame = ctk.CTkFrame(self.listbox)
-            row_frame.grid(row=i, column=0, sticky="nsew", padx=5, pady=0)
-            row_frame.grid_columnconfigure(0, weight=1)
-            label = ctk.CTkLabel(row_frame, text=item + f" ({i+1})", anchor="w", justify="left", fg_color="transparent")
-            label.grid(row=0, column=0, padx=12, pady=0, sticky="nsew")
+            RowFrame(self.listbox, i, item)
             
-            ## Functionality for clicking on a file 
-            # def on_row_click(event, item=item, label=label, row_frame=row_frame):
-            #         if pos_vars['selected_file'].get() == item:
-            #             pos_vars['selected_file'].set("")
-            #             label.configure(fg_color="transparent")
-            #             row_frame.configure(fg_color="transparent")
-            #         else:
-            #             row_frame.configure(fg_color=DARK_GREY)
-            #             pos_vars['selected_file'].set(item)
-            #             click(item)
-                    
-            # label.bind("<Button-1>", on_row_click)
-
-         
+class RowFrame(ctk.CTkFrame):
+    def __init__(self, parent, index, item, **kwargs):
+        super().__init__(parent)
+        self.grid(row=index, column=0, sticky="nsew", padx=5, pady=0)
+        self.grid_columnconfigure(0, weight=1)
+        label = ctk.CTkLabel(self, text= f" {index+1}. " + item, anchor="w", justify="left", fg_color="transparent", text_color="white")
+        label.grid(row=0, column=0, padx=12, pady=0, sticky="nsew")

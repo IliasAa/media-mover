@@ -29,8 +29,6 @@ class OpenOutputButton(ctk.CTkButton):
         path = filedialog.askopenfile().name
         self.image_import(path)
 
-       
-
 
 class CloseOutput(ctk.CTkButton):
     def __init__(self, parent, close_button):

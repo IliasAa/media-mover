@@ -14,3 +14,5 @@ new_file_path = dst / file_name.replace(".HEIC", ".jpg")
 convert_single_file(str(file_path), str(new_file_path), 60)
 
 
+
+
