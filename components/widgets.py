@@ -1,34 +1,36 @@
 import tkinter
+from tkinter import filedialog
 import customtkinter as ctk
-from controllers.export_controller import ExportController
-from models.file_transfer_props import FileTransferProps
-from panels import *
-
 
 class Panel(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(master=parent, fg_color='transparent')
         
-class SelectFileButton(Panel):
-    def __init__(self, parent, import_func, entry_text="Select file", **kwargs):
+class SelectFileButtonExport(Panel):
+    def __init__(self, parent, import_func, text_button, entry_text="Select file", **kwargs):
         super().__init__(parent)
         self.selectDirectory = import_func
      
         self.grid_columnconfigure((0, 1, 2), weight=1, uniform='a')
         self.grid_rowconfigure(0, weight=1)    
+        
         # Second row of the grid with the source directory label and entry
         self.entry = ctk.CTkEntry(master=self, placeholder_text=entry_text)
         self.entry.grid(row=0, column=0,  columnspan=2, padx=(5), pady=(5), sticky="nsew")
         
-        browse_dir_button = ctk.CTkButton(master=self, text="Browse", command=lambda: self.import_directory())
+        browse_dir_button = ctk.CTkButton(master=self, text=text_button, command=lambda: self.import_directory())
         browse_dir_button.grid(row=0, column=2,columnspan=1, padx=(5), pady=(5), sticky="ew")
                 
     def import_directory(self):
         directory = filedialog.askdirectory()
         if directory:
             self.selectDirectory(directory)
-            self.entry.delete(0, tkinter.END)
-            self.entry.insert(0, directory)
+            self.set_entry(directory)
+            
+    def set_entry(self, text):
+        self.entry.delete(0, tkinter.END)
+        if (len(text) > 0):
+            self.entry.insert(0, text)
 
 class SelectOptions(Panel):
     def __init__(self, parent, file_transfer_props: FileTransferProps, **kwargs):
@@ -67,27 +69,26 @@ class SelectFilesOverview(Panel):
         self.scrollable_frame.grid(row=1, column=0, padx=(5), pady=(5), sticky="nsew")
         
 class ActionsButton(Panel):
-    def __init__(self, parent, start_progress, **kwargs):
+    def __init__(self, parent, start_progress, clear_progress, **kwargs):
         super().__init__(parent)
     
         
         self.grid_columnconfigure((0, 1, 2), weight=1, uniform='a')
         self.grid_rowconfigure((0), weight=1)  # Adjusted row weights to balance height
         
-        self.button = ctk.CTkButton(master=self, text="Save")
+        self.button = ctk.CTkButton(master=self, text="Save", command=lambda: print("Save clicked"))
         self.button.grid(row=0, column=0, padx=(5), pady=(5), sticky="nsew")
         
         self.button2 = ctk.CTkButton(master=self, text="Start", command=start_progress)
         self.button2.grid(row=0, column=1, padx=(5), pady=(5), sticky="nsew")
         
-        self.button3 = ctk.CTkButton(master=self, text="Clear")
+        self.button3 = ctk.CTkButton(master=self, text="Clear", command=clear_progress)
         self.button3.grid(row=0, column=2, padx=(5), pady=(5), sticky="nsew")
         
         
 class FilesMenu(Panel):
-    def __init__(self, parent, pos_vars ,export_controller: ExportController, **kwargs):
+    def __init__(self, parent,items, **kwargs):
         super().__init__(parent)
-        self.pos_vars = pos_vars
         self.grid_columnconfigure(0, weight=1)
         
         self.label = ctk.CTkLabel(self, text="Created files", font=("Roboto", 18))
@@ -97,18 +98,16 @@ class FilesMenu(Panel):
         self.listbox.grid(row=1, column=0, padx=5, pady=0, sticky="nsew")
 
         self.listbox.grid_columnconfigure(0, weight=1)
-
-        self.items = export_controller.file_manager_props.items
-        export_controller.on_items_updated = self.update_items
-        self.update_items()
         
-    def update_items(self):
+        self.update_items(items)
+        
+    def update_items(self, items):
         # Clear existing items
         for widget in self.listbox.winfo_children():
             widget.destroy()
         
         # Add all items
-        for i, item in enumerate(self.items):
+        for i, item in enumerate(items):
             RowFrame(self.listbox, i, item)
             
 class RowFrame(ctk.CTkFrame):

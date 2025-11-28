@@ -1,35 +1,31 @@
-from unittest import case
-from screens.export.file_transfer import FileTransferManager
-from models.file_transfer_props import FileTransferProps
+from screens.export.export_screen import ExportScreen
+from models.file_transfer.file_transfer import FileTransferManager
 
 class ExportController:
-    def __init__(self, progressbar):
-      self.file_manager_props = FileTransferProps(None, None, False, False, False, False)
-      self.progressbar = progressbar
-      self.on_items_updated = None
+    
+    def __init__(self, master):
+        self.subject = FileTransferManager()
+        self.show_export_screen(master)
+        ## Register the ExportScreen as an observer to the FileTransferManager
+        self.subject.attach(self.my_frame)
+      
+    def show_export_screen(self, master):
+        '''Display the export screen on the main application window'''
+        self.my_frame = ExportScreen(master=master, controller=self)
+        self.my_frame.grid(row=0, column=1, columnspan=2, rowspan=2, sticky="nsew", padx=10, pady=10)
         
     def start_progress(self):
-        self.file_manager = FileTransferManager(self.file_manager_props, self.progressbar)
-        self.file_manager.start_progress(self.add_item)
+        self.subject.start_progress()
         
-    def add_item(self, item):
-        if self.on_items_updated:
-            self.file_manager_props.items.append(item)
-            self.on_items_updated()
+    def clear_progress(self):
+        self.subject.clear_progress()
         
     def set_from_directory(self, from_directory):
-        self.file_manager_props.from_path = from_directory
+        '''Set the source directory for file transfer'''
+        self.subject.from_directory = from_directory
     
     def set_to_directory(self, to_directory):
-        self.file_manager_props.to_path = to_directory
-        
-    def switch_screen(self, screen_name):
-        match screen_name:
-            case "export":
-                None
-            case "edit":
-                None
-            case _:
-                None
+        '''Set the destination directory for file transfer'''
+        self.subject.to_directory = to_directory
     
     

@@ -1,55 +1,88 @@
+from ast import List
 from fileinput import filename
 import os
 
 from helper.file_helper_functions import *
 import concurrent.futures
 from datetime import date
-import ffmpeg
-from models.file_transfer_props import FileTransferProps
+from screens.observer import Observer
+from models.subject import Subject
 
-class FileTransferManager():
-    def __init__(self, file_transfer_props: FileTransferProps, progressbar):
-        self.from_directory = file_transfer_props.from_path
-        self.to_directory = file_transfer_props.to_path
-        self.progressbar = progressbar
+class FileTransferManager(Subject):
+    _observers: List[Observer] = []
+    collected_files: dict = {}
+    collected_duplicates: dict = {}
+    date_register: dict = {}
+    amount_of_photos_collected: int = 0
+    amount_of_videos_collected: int = 0
+    amount_of_duplicates: int = 0
+    hash_set_photos: set = set()
+    no_date_files: list = []
+    items: list = []
+    heic_files: dict = {}
+    non_heic_files: dict = {}
+    progress: int = 0
+    filter_blurry: bool = False
+    filter_lookalikes: bool = False
+    create_date_folders: bool = False
+    save_hashes: bool = False
+    from_directory: str = ""
+    to_directory: str = ""
+    
+    
+    def __init__(self):
         self.root = os.path.basename(self.from_directory)
         
-        self.amount_of_photos_collected = 0
-        self.amount_of_videos_collected = 0
-        self.amount_of_duplicates = 0
-        
-        # format is {origin_file_path: [filename, file_extension, parent_directory]}
-        self.heic_files = {}
-        self.collected_files = {}
-        self.collected_duplicates = {}
-        self.date_register = {}
-        
-        self.hash_set_photos = set()
-        
-        # List of files where the date could not be retrieved
-        self.no_date_files = []
-        
+    def attach(self, observer: Observer) -> None:
+        self._observers.append(observer)
 
-    def start_progress(self, add_item):
-        # if (self.pos_vars['from_directory'].get() and 
-        #     self.pos_vars['to_directory'].get()):
-            
-            self.progressbar.start()
+    def detach(self, observer: Observer) -> None:
+        self._observers.remove(observer)
+
+    """
+    The subscription management methods.
+    """
+
+    def notify(self) -> None:
+        """
+        Trigger an update in each subscriber.
+        """
+        for observer in self._observers:
+            observer.update(self)
+    
+    
+    def start_progress(self):
+        if (self.from_directory and 
+            self.to_directory):
             self.collectAllMediaFromDirectory(self.from_directory)
             self.addDateName(self.collected_files)
             self.handleNoDateFiles()
-            print("Files sorted: ", self.date_register)
-            for parent_dir, date in self.collected_files.items():
-                print(f"Parent Directory: {parent_dir}, Date: {date}")
-            for parent_dir, date in self.heic_files.items():
-                print(f"Parent Directory: {parent_dir}, Date: {date}")
-            self.createAndCopyToFolder(add_item)
-            
+            self.createAndCopyToFolder()
+            self.notify()
             
             self.heic_files = dict(filter(lambda item: self.isHEICImage(item), self.collected_files.items()))
             self.non_heic_files = dict(filter(lambda item: not self.isHEICImage(item), self.collected_files.items()))
             
-            
+    def clear_progress(self):
+        self.collected_files = {}
+        self.collected_duplicates = {}
+        self.date_register = {}
+        self.amount_of_photos_collected = 0
+        self.amount_of_videos_collected = 0
+        self.amount_of_duplicates = 0
+        self.hash_set_photos = set()
+        self.no_date_files = []
+        self.items = []
+        self.heic_files = {}
+        self.non_heic_files = {}
+        self.progress = 0
+        self.filter_blurry = False
+        self.filter_lookalikes = False
+        self.create_date_folders = False
+        self.save_hashes = False
+        self.from_directory = ""
+        self.to_directory = ""
+        self.notify()
             
     def collectAllMediaFromDirectory(self, root):
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
@@ -116,7 +149,7 @@ class FileTransferManager():
     
     
         
-    def createAndCopyToFolder(self, add_item):
+    def createAndCopyToFolder(self):
         for file_path, info in self.collected_files.items():
             date = str(info[2])
             parent_path = os.path.join(self.to_directory, date, self.root)
@@ -126,9 +159,9 @@ class FileTransferManager():
             try:
                 file_name = info[0]
                 new_file_path = os.path.join(parent_path, file_name)
+                self.items.append(new_file_path)
                 shutil.copy2(file_path, new_file_path)
-                add_item(new_file_path)
-                print(f"Copied {file_name} to {parent_path}")
+                # print(f"Copied {file_name} to {parent_path}")
             except Exception as e:
                 print(f"Error copying {file_name}: {e}")
     
