@@ -26,6 +26,7 @@ class SelectFileButtonExport(Panel):
         if directory:
             self.selectDirectory(directory)
             self.set_entry(directory)
+            self.entry.master.focus_set()
             
     def set_entry(self, text):
         self.entry.delete(0, tkinter.END)
@@ -33,23 +34,23 @@ class SelectFileButtonExport(Panel):
             self.entry.insert(0, text)
 
 class SelectOptions(Panel):
-    def __init__(self, parent, file_transfer_props: FileTransferProps, **kwargs):
+    def __init__(self, parent, controller, **kwargs):
         super().__init__(parent)
         
         self.grid_columnconfigure((0, 1), weight=1, uniform='a')  # Adjusted column weights to balance width
         self.grid_rowconfigure((0, 1), weight=1, uniform='a')
         self.radio_var = tkinter.IntVar(value=0)
         
-        checkbox_1 = ctk.CTkCheckBox(master=self, text="Filter blurry images", command=lambda: file_transfer_props.toggle_blurry())
+        checkbox_1 = ctk.CTkCheckBox(master=self, text="Filter blurry images", command=lambda: controller.toggle_blurry())
         checkbox_1.grid(row=0, column=0, padx=(10, 20), pady=(5), sticky="nsew")  # Added space between columns
         
-        checkbox_2 = ctk.CTkCheckBox(master=self, text="Create date folders", command=lambda: file_transfer_props.toggle_date_folders())
+        checkbox_2 = ctk.CTkCheckBox(master=self, text="Create date folders", command=lambda: controller.toggle_date_folders())
         checkbox_2.grid(row=0, column=1, padx=(20, 10), pady=(5), sticky="nsew")  # Right column aligned to the right
         
-        checkbox_3 = ctk.CTkCheckBox(master=self, text="Filter lookalikes", command=lambda: file_transfer_props.toggle_lookalikes())
+        checkbox_3 = ctk.CTkCheckBox(master=self, text="Filter lookalikes", command=lambda: controller.toggle_lookalikes())
         checkbox_3.grid(row=1, column=0, padx=(10, 20), pady=(5), sticky="nsew")  # Added space between columns
         
-        checkbox_4 = ctk.CTkCheckBox(master=self, text="Save hashes", command=lambda: file_transfer_props.toggle_hashes())
+        checkbox_4 = ctk.CTkCheckBox(master=self, text="Save hashes", command=lambda: controller.toggle_hashes())
         checkbox_4.grid(row=1, column=1, padx=(20, 10), pady=(5), sticky="nsew")  # Right column aligned to the right
         
         

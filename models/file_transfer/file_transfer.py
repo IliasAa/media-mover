@@ -51,18 +51,6 @@ class FileTransferManager(Subject):
             observer.update(self)
     
     
-    def start_progress(self):
-        if (self.from_directory and 
-            self.to_directory):
-            self.collectAllMediaFromDirectory(self.from_directory)
-            self.addDateName(self.collected_files)
-            self.handleNoDateFiles()
-            self.createAndCopyToFolder()
-            self.notify()
-            
-            self.heic_files = dict(filter(lambda item: self.isHEICImage(item), self.collected_files.items()))
-            self.non_heic_files = dict(filter(lambda item: not self.isHEICImage(item), self.collected_files.items()))
-            
     def clear_progress(self):
         self.collected_files = {}
         self.collected_duplicates = {}
@@ -83,6 +71,21 @@ class FileTransferManager(Subject):
         self.from_directory = ""
         self.to_directory = ""
         self.notify()
+    
+    
+    def start_progress(self):
+        if (self.from_directory and 
+            self.to_directory):
+            self.collectAllMediaFromDirectory(self.from_directory)
+            self.notify()
+            self.addDateName(self.collected_files)
+            self.handleNoDateFiles()
+            self.createAndCopyToFolder()
+            self.notify()
+            self.heic_files = dict(filter(lambda item: self.isHEICImage(item), self.collected_files.items()))
+            self.non_heic_files = dict(filter(lambda item: not self.isHEICImage(item), self.collected_files.items()))
+            
+
             
     def collectAllMediaFromDirectory(self, root):
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
@@ -148,11 +151,11 @@ class FileTransferManager(Subject):
                 self.collected_files[file_path].append(date_now)
     
     
-        
     def createAndCopyToFolder(self):
         for file_path, info in self.collected_files.items():
             date = str(info[2])
             parent_path = os.path.join(self.to_directory, date, self.root)
+            self.progress += 1
             if not os.path.exists(parent_path):
                 os.makedirs(parent_path)
                 

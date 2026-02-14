@@ -13,7 +13,7 @@ class ExportController:
         '''Display the export screen on the main application window'''
         self.my_frame = ExportScreen(master=master, controller=self)
         self.my_frame.grid(row=0, column=1, columnspan=2, rowspan=2, sticky="nsew", padx=10, pady=10)
-        
+    
     def start_progress(self):
         self.subject.start_progress()
         
@@ -28,4 +28,15 @@ class ExportController:
         '''Set the destination directory for file transfer'''
         self.subject.to_directory = to_directory
     
+    def toggle_blurry(self):
+        self.subject.filter_blurry = not self.subject.filter_blurry
+    
+    def toggle_date_folders(self):
+        self.subject.create_date_folders = not self.subject.create_date_folders
+    
+    def toggle_lookalikes(self):
+        self.subject.filter_lookalikes = not self.subject.filter_lookalikes
+        
+    def toggle_hashes(self):
+        self.subject.save_hashes = not self.subject.save_hashes
     

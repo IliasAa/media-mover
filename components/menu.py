@@ -7,7 +7,6 @@ class OptionsMenu(ctk.CTkFrame):
         super().__init__(master=parent)
         self.grid(row=0, column=0, sticky='nsew', padx=10, pady=10)
         
-
         label = ctk.CTkLabel(master=self, text="Options", font=("Roboto", 18), text_color="white")
         label.pack(pady=22, padx=10)
 
