@@ -1,42 +1,55 @@
 import hashlib
 import os
-import shutil
 from PIL import Image
 from PIL.ExifTags import TAGS
 import re
-import pickle
-from datetime import date
-from pillow_heif import register_heif_opener
 import ffmpeg
+from collections import defaultdict
 
 
 image_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.heic', '.jpg')
-video_extensions = ('.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.mov', '.mp4' )
+video_extensions = ('.mp4',
+                    '.avi',
+                    '.mov',
+                    '.mkv',
+                    '.flv',
+                    '.wmv',
+                    '.mov',
+                    '.mp4')
 
 
 # Function to check if a file is a media file based on its extension
 def is_media_file(filename):
     return filename.lower().endswith(image_extensions + video_extensions)
 
+
 def is_image_file(filename):
     return filename.lower().endswith(image_extensions)
 
-def is_video_file(filename):    
+
+def is_video_file(filename):
     return filename.lower().endswith(video_extensions)
 
+
 def is_HEIC_file(filename):
-    return filename.lower().endswith('.heic') or filename.lower().endswith('.heif')
-    
+    return filename.lower().endswith('.heic') or filename.lower().endswith(
+        '.heif')
+
+
 def get_file_extension(filename):
     return os.path.splitext(filename)[1].lower()
 
-def getParentDirectory(file_path):
+
+def get_parent_directory(file_path):
     return os.path.basename(os.path.dirname(file_path))
+
 
 def convert_to_JPG(filename):
     base, ext = os.path.splitext(filename)
-    return base + '.jpg' if ext.lower() == '.heic' or ext.lower() == '.heif' else filename
-    
+    return base + '.jpg' if ext.lower() == '.heic' or \
+        ext.lower() == '.heif' else filename
+
+
 # Desperate move to find the date in the file path if not found in metadata
 def find_date_in_text(file_path):
     date_regex = r'\b\d{4}'
@@ -46,6 +59,7 @@ def find_date_in_text(file_path):
         if found_date.startswith("20") or found_date.startswith("19"):
             return dates[0]
     return None  # Return current year if no date found
+
 
 # Function to get the date from the image metadata or file path
 def get_image_date(file_path):
@@ -64,8 +78,7 @@ def get_image_date(file_path):
             print(f"No EXIF data found for {file_path}")
             return find_date_in_text(file_path)
 
-    
-    except Exception as e:
+    except Exception:
         # Find all matches in the text
         return find_date_in_text(file_path)
 
@@ -81,12 +94,10 @@ def get_video_date(file_path):
                 return find_date_in_text(tags["creation_time"])
 
         return find_date_in_text(file_path)
-            
-        
-        
-    except Exception as e:
+
+    except Exception:
         return find_date_in_text(file_path)
-        
+
 
 # Function to calculate unique hash for a file used for deduplication
 def calculate_hash(file_path):
@@ -96,3 +107,26 @@ def calculate_hash(file_path):
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
     return hash_md5.hexdigest()
+
+
+def tree_generator_text(collected_files, to_directory):
+    tree_text = f"📂{to_directory}\n" if collected_files.items() else \
+        "No files are processed."
+
+    # parent -> date -> files
+    res = defaultdict(lambda: defaultdict(list))
+
+    for file_path, file_info in collected_files.items():
+        filename, parent_dir, date = file_info
+        res[parent_dir][date].append(file_path)
+
+    for parent_dir in sorted(res.keys()):
+        tree_text += f"├─ 📂{parent_dir}/\n"
+
+        for date in sorted(res[parent_dir].keys()):
+            tree_text += f"│  ├─ 📂{date}/\n"
+
+            for file_path in sorted(res[parent_dir][date]):
+                tree_text += f"│  │  ├─ 📄{os.path.basename(file_path)}\n"
+
+    return tree_text

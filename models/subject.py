@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from screens.observer import Observer
 
+
 class Subject(ABC):
     """
     The Subject interface declares a set of methods for managing subscribers.
