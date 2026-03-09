@@ -1,13 +1,25 @@
-from pathlib import Path
-from test_scripts.convert_HEIC_test import convert_single_file
+import asyncio
+from pymobiledevice3.lockdown import create_using_usbmux
 
-src = Path("C:/Users/ilias/Desktop/from_dir")
-dst = Path("C:/Users/ilias/Desktop/to_dir/2023/from_dir")
 
-file_name = 'IMG_2707.HEIC'
+async def main():
+    lockdown = await create_using_usbmux()
+    print(lockdown.all_values.get("DeviceName"))
 
-file_path = src / file_name
-new_file_path = dst / file_name.replace(".HEIC", ".jpg")
+asyncio.run(main())
+# async def main():
+#     lockdown = await create_using_usbmux()
+#     afc = AfcService(lockdown)
 
-# Convert to string if needed
-convert_single_file(str(file_path), str(new_file_path), 60)
+#     folders = await afc.listdir("/DCIM")
+
+#     for folder in folders:
+#         files = await afc.listdir(f"/DCIM/{folder}")
+#         for f in files:
+#             print(f"/DCIM/{folder}/{f}")
+#     data = await afc.get_file_contents("/DCIM/100APPLE/IMG_0621.HEIC")
+
+#     with open("IMG_0621.HEIC", "wb") as f:
+#         f.write(data)
+
+# asyncio.run(main())

@@ -1,3 +1,5 @@
+import asyncio
+
 import customtkinter as ctk
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -5,11 +7,14 @@ if TYPE_CHECKING:
     from models.file_transfer.file_transfer import FileTransferManager
 from screens.observer import Observer
 from components.widgets import (
+    DeviceLabel,
     MyFrame,
+    ScanForDevices,
     SelectFileButtonExport,
     ActionsButton,
     SelectOptions,
 )
+import threading
 
 
 class ExportScreen(ctk.CTkFrame, Observer):
@@ -26,6 +31,12 @@ class ExportScreen(ctk.CTkFrame, Observer):
         # Set up the grid to contain 8 rows item and filled up.
         self.grid_columnconfigure(0, weight=1, uniform='a')
         self.export_screen()
+
+    def run_async(self, coro):
+        def runner():
+            asyncio.run(coro)
+
+        threading.Thread(target=runner, daemon=True).start()
 
     def update(self, subject: FileTransferManager) -> None:
         self.items = subject.items
@@ -65,6 +76,35 @@ class ExportScreen(ctk.CTkFrame, Observer):
         # Action buttons
         self.set_actions_buttons()
 
+    def set_found_devices(self):
+        devices_names = self.controller.get_all_device_names()
+
+        # Create a container frame if it doesn't exist
+        if not hasattr(self, "device_row_frame"):
+            self.device_row_frame = ctk.CTkFrame(self, fg_color="transparent")
+            self.device_row_frame.grid(row=2, column=0, sticky='w', padx=20, pady=5)
+
+        # Clear previous labels
+        for widget in getattr(self, "device_labels", []):
+            widget.destroy()
+        self.device_labels = []
+
+        # Add new labels inside the container frame
+        for i, name in enumerate(devices_names):
+            device_label = DeviceLabel(
+                self.device_row_frame,
+                name,
+                delete_callback=lambda n=name: print(f"Delete {n}")
+            )
+            device_label.grid(
+                row=0,           # same row
+                column=i,        # next column
+                sticky='w',      # no stretching
+                padx=(2, 2),     # small gap between labels
+                pady=(0, 0)
+            )
+            self.device_labels.append(device_label)
+
     def set_from_and_to_directories(self) -> None:
         # From directory input
         from_callback = (
@@ -83,6 +123,22 @@ class ExportScreen(ctk.CTkFrame, Observer):
             padx=20,
             pady=0
         )
+        scan_callback = (lambda: self.run_async(
+                self.controller.check_for_connected_devices())
+        )
+        self.scan_for_devices_button = ScanForDevices(
+            self,
+            text_button="Scan for devices",
+            scan_callback=scan_callback
+        )
+        self.scan_for_devices_button.grid(
+            row=3,
+            column=0,
+            sticky='nsew',
+            padx=20,
+            pady=0
+        )
+
         # To directory input
         to_callback = (
             lambda toDir: self.controller.set_to_directory(toDir)
@@ -94,7 +150,7 @@ class ExportScreen(ctk.CTkFrame, Observer):
             text_button="Browse To Directory"
         )
         self.toDirectory.grid(
-            row=2,
+            row=4,
             column=0,
             sticky='nsew',
             padx=20,
@@ -106,7 +162,7 @@ class ExportScreen(ctk.CTkFrame, Observer):
         self.file_menu = MyFrame(self, items=self.collected_files,
                                  to_directory=self.to_directory)
         self.file_menu.grid(
-            row=3,
+            row=5,
             column=0,
             sticky='nsew',
             padx=20,
@@ -116,7 +172,7 @@ class ExportScreen(ctk.CTkFrame, Observer):
     def set_selected_options(self):
         self.selectOptions = SelectOptions(self, self.controller)
         self.selectOptions.grid(
-            row=4,
+            row=6,
             column=0,
             sticky='nsew',
             padx=20,
@@ -125,7 +181,7 @@ class ExportScreen(ctk.CTkFrame, Observer):
 
     def set_progress(self):
         self.progressbar.grid(
-            row=5,
+            row=7,
             column=0,
             sticky='ew',
             padx=20,
@@ -134,11 +190,16 @@ class ExportScreen(ctk.CTkFrame, Observer):
         self.progressbar.set(0)
 
     def set_actions_buttons(self):
-        self.actions_button = ActionsButton(self,
-                                            self.controller.start_progress,
-                                            self.controller.clear_progress)
+        self.actions_button = ActionsButton(
+            self,
+            start=self.controller.start_progress,
+            clear=self.controller.clear_progress,
+            scan=lambda: self.run_async(
+                self.controller.check_for_connected_devices()),
+            save=lambda: print("Save clicked")
+        )
         self.actions_button.grid(
-            row=6,
+            row=8,
             column=0,
             sticky='nsew',
             padx=20,

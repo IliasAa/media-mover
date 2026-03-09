@@ -48,6 +48,71 @@ class SelectFileButtonExport(Panel):
             self.entry.insert(0, text)
 
 
+class ScanForDevices(ctk.CTkFrame):
+    def __init__(self,
+                 parent,
+                 text_button,
+                 scan_callback, **kwargs):
+        super().__init__(parent)
+        self.grid_columnconfigure((0), weight=1, uniform='a')
+        self.scanButton = ctk.CTkButton(
+            master=self,
+            text=text_button,
+            command=lambda: scan_callback())
+        self.scanButton.grid(row=0, column=0, columnspan=1, padx=(5), pady=(5),
+                             sticky="ew")
+
+
+class DeviceLabel(ctk.CTkFrame):
+    def __init__(self, parent, device_name, delete_callback, **kwargs):
+        # Use a colored frame as background
+        super().__init__(parent, corner_radius=10, fg_color='#2FA572', **kwargs)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure((0, 1), weight=0)
+
+        # Device name label
+        self.label = ctk.CTkLabel(
+            self, text=device_name, text_color="white", anchor="w",
+            fg_color="transparent", padx=5, pady=5
+        )
+        self.label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+
+        # Delete button
+        self.delete_button = ctk.CTkButton(
+            self,
+            text="✕",
+            width=25,
+            height=25,
+            fg_color="#FF5C5C",
+            hover_color="#FF1F1F",
+            command=lambda: delete_callback(device_name)
+        )
+        self.delete_button.grid(row=0, column=1, padx=5, pady=0)
+
+
+# Container frame to hold multiple labels tightly
+class DeviceLabelRow(ctk.CTkFrame):
+    def __init__(self, parent, controller, **kwargs):
+        super().__init__(parent, fg_color="#1E1E1E", **kwargs)
+        self.controller = controller
+        self.grid_columnconfigure(0, weight=1)
+        self.refresh_labels()
+
+    def refresh_labels(self):
+        # Clear existing labels
+        for widget in self.winfo_children():
+            widget.destroy()
+
+        devices_names = self.controller.get_all_device_names()
+        for i, name in enumerate(devices_names):
+            device_label = DeviceLabel(
+                self,
+                name,
+                delete_callback=lambda n=name: print(f"Delete {n}")
+            )
+            device_label.grid(row=0, column=i, sticky="w", padx=5, pady=5)
+
+
 class SelectOptions(Panel):
     def __init__(self, parent, controller, **kwargs):
         super().__init__(parent)
@@ -132,17 +197,22 @@ class SelectFilesOverview(Panel):
 
 
 class ActionsButton(Panel):
-    def __init__(self, parent, start_progress, clear_progress, **kwargs):
+    def __init__(self, parent, **kwargs):
         super().__init__(parent)
 
-        self.grid_columnconfigure((0, 1, 2), weight=1, uniform='a')
+        start = kwargs.get("start")
+        clear = kwargs.get("clear")
+        # scan = kwargs.get("scan")
+        save = kwargs.get("save")
+
+        self.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
         # Adjusted row weights to balance height
         self.grid_rowconfigure((0), weight=1)
 
         self.button = ctk.CTkButton(
             master=self,
             text="Save",
-            command=lambda: print("Save clicked"))
+            command=save)
         self.button.grid(
             row=0,
             column=0,
@@ -154,7 +224,7 @@ class ActionsButton(Panel):
         self.button2 = ctk.CTkButton(
             master=self,
             text="Start",
-            command=start_progress
+            command=start
         )
         self.button2.grid(
             row=0,
@@ -167,7 +237,7 @@ class ActionsButton(Panel):
         self.button3 = ctk.CTkButton(
             master=self,
             text="Clear",
-            command=clear_progress
+            command=clear
         )
         self.button3.grid(
             row=0,
@@ -176,6 +246,19 @@ class ActionsButton(Panel):
             pady=(5),
             sticky="nsew"
         )
+
+        # self.button4 = ctk.CTkButton(
+        #     master=self,
+        #     text="Scan",
+        #     command=scan
+        # )
+        # self.button4.grid(
+        #     row=0,
+        #     column=3,
+        #     padx=(5),
+        #     pady=(5),
+        #     sticky="nsew"
+        # )
 
 
 class MyFrame(ctk.CTkTextbox):

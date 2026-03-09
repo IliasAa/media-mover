@@ -2,6 +2,7 @@ from tkinter import PhotoImage
 import customtkinter as ctk
 from controllers.export_controller import ExportController
 from components.menu import OptionsMenu
+from models.file_transfer.file_transfer import FileTransferManager
 from settings import APP_NAME, APP_ICON_PATH, WINDOW_SIZE
 
 
@@ -24,7 +25,9 @@ class App(ctk.CTk):
 
         # Left half of the screen
         self.menu = OptionsMenu(self)
-        self.selected_controller = ExportController(self)
+        self.file_transfer_manager = FileTransferManager()
+        self.selected_controller = ExportController(self,
+                                                    self.file_transfer_manager)
 
         self.mainloop()
 
