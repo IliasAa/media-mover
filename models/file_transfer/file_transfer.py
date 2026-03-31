@@ -1,19 +1,28 @@
 from ast import List
+from io import BytesIO
 import os
 import shutil
+
+from models.dataclass.data_class import FileInfo
+from models.devices import Device
 from helper.file_helper_functions import (
     is_media_file,
     is_image_file,
     is_video_file,
-    get_parent_directory,
-    get_image_date,
     calculate_hash,
     is_HEIC_file,
 )
 import concurrent.futures
-from datetime import date
+from models.file_path import FilePathConstructor, DirectoryOrder
 from screens.observer import Observer
 from models.subject import Subject
+
+order = [
+    DirectoryOrder(
+        directory="device", order=1),
+    DirectoryOrder(
+        directory="exif_data", order=2),
+]
 
 
 class FileTransferManager(Subject):
@@ -21,6 +30,7 @@ class FileTransferManager(Subject):
     collected_files: dict = {}
     collected_duplicates: dict = {}
     date_register: dict = {}
+    amount_of_files_collected: int = 0
     amount_of_photos_collected: int = 0
     amount_of_videos_collected: int = 0
     amount_of_duplicates: int = 0
@@ -36,6 +46,7 @@ class FileTransferManager(Subject):
     save_hashes: bool = False
     from_directory: str = ""
     to_directory: str = ""
+    path_constructor: FilePathConstructor = None
 
     def __init__(self):
         self.root = os.path.basename(self.from_directory)
@@ -78,23 +89,37 @@ class FileTransferManager(Subject):
         self.to_directory = ""
         self.notify()
 
-    def start_progress(self):
-        if (self.from_directory and self.to_directory):
-            self.collect_all_media_from_directory(self.from_directory)
+    async def start_progress(self, devices: List[Device]):
+        print(len(self.collected_files))
+        if (
+            self.from_directory and self.to_directory
+            or len(devices) > 0
+        ):
+            for device in devices:
+                await self.collect_all_media_from_device(device)
+            self.collect_all_media_from_directory()
             # self.notify()
-            self.add_date_name(self.collected_files)
-            self.handle_no_date_files()
+            # self.add_date_name(self.collected_files)
+            # self.handle_no_date_files()
             # self.create_and_copy_to_folder()
             self.notify()
-            self.heic_files = dict(filter(
-                lambda item: self.is_heic_image(item),
-                self.collected_files.items()))
 
-            self.non_heic_files = dict(filter(
-                lambda item: not self.is_heic_image(item),
-                self.collected_files.items()))
+    async def collect_all_media_from_device(self, device: Device):
+        self.path_constructor = FilePathConstructor(
+            device_id=device.get_device_id(),
+            order_of_directories=order
+        )
+        count = 0
+        self.amount_of_files_collected += len(device.registered_paths)
+        for path in device.registered_paths:
+            await self.process_file_from_device(device, path)
+            if count % 20 == 0:  # Notify every 10 files processed
+                self.notify()
+            count += 1
 
-    def collect_all_media_from_directory(self, root):
+        self.notify()  # Final notification after processing all files
+
+    def collect_all_media_from_directory(self):
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             futures = []
             for root_dir, dirs, files in os.walk(self.from_directory):
@@ -103,90 +128,126 @@ class FileTransferManager(Subject):
                         executor.submit(self.process_file, root_dir, filename))
             concurrent.futures.wait(futures)
 
-    def process_file(self, root, filename):
+    async def process_file_from_device(self, device: Device, path: str):
+        if is_media_file(path):
+            if path not in self.collected_files:
+                if is_image_file(path):
+                    self.amount_of_photos_collected += 1
+                    file_info = FileInfo(
+                        source_path=path,
+                        filename=os.path.basename(path),
+                        year=None,
+                        device=device
+                    )
+                    file_info.constructed_path = (
+                        await self.path_constructor
+                        .construct_destination_path(
+                            file_info
+                        )
+                    )
+                    self.collected_files[path] = file_info
+                elif is_video_file(path):
+                    self.amount_of_videos_collected += 1
+                    file_info = FileInfo(
+                        source_path=path,
+                        filename=os.path.basename(path),
+                        year=None,
+                        device=device
+                    )
+                    file_info.constructed_path = (
+                        await self.path_constructor
+                        .construct_destination_path(
+                            file_info
+                        )
+                    )
+                    self.collected_files[path] = file_info
+            # self.notify()
+
+    def process_file(self, root, filename, device=None):
         if is_media_file(filename):
             file_path = os.path.join(root, filename)
             file_hash = calculate_hash(file_path)
 
             if file_hash not in self.hash_set_photos:
                 self.hash_set_photos.add(file_hash)
-
                 if is_image_file(filename):
                     self.amount_of_photos_collected += 1
                     # Separate the heic from other file types.
-                    target_dict = (
-                        self.heic_files if is_HEIC_file(filename)
-                        else self.collected_files
+                    file_info = FileInfo(
+                        source_path=file_path,
+                        filename=filename,
+                        year=None,
+                        device=device  # You can set the device here if needed
                     )
-                    file_info = [
-                        filename,
-                        get_parent_directory(file_path)
-                    ]
-                    target_dict[file_path] = file_info
+                    self.collected_files[file_path] = file_info
                 elif is_video_file(filename):
                     self.amount_of_videos_collected += 1
-                    print(f"Collected video: {file_path}")
-                    file_info = [
-                        filename,
-                        get_parent_directory(file_path)
-                    ]
+                    file_info = FileInfo(
+                        source_path=file_path,
+                        filename=filename,
+                        year=None,
+                        device=device  # You can set the device here if needed
+                    )
                     self.collected_files[file_path] = file_info
 
             else:
                 self.amount_of_duplicates += 1
-                file_info = [
-                    filename,
-                    get_parent_directory(file_path)
-                ]
+                file_info = FileInfo(
+                    source_path=file_path,
+                    filename=filename,
+                    year=None,
+                    device=None
+                )
                 self.collected_duplicates[file_path] = file_info
 
-    def add_date_name(self, files_dict):
-        for origin_path, info in files_dict.items():
-            date = get_image_date(origin_path)
-            parent_directory = info[1]
+    async def create_and_copy_to_folder(self):
+        if self.to_directory == "":
+            print("No destination directory set. Skipping file copy.")
+            return
 
-            # Register date for parent directory if not already set
-            if parent_directory not in self.date_register and date is not None:
-                self.date_register[parent_directory] = date
-            # Handle files with no date
-            if date:
-                self.collected_files.setdefault(origin_path, info).append(date)
-            else:
-                parent_date = self.date_register.get(parent_directory)
-                if parent_date is None:
-                    self.no_date_files.append(origin_path)
-                else:
-                    file_entry = self.collected_files.setdefault(
-                        origin_path, info
-                    )
-                    file_entry.append(parent_date)
-
-    def handle_no_date_files(self):
-        for file_path in self.no_date_files:
-            item = self.collected_files.get(file_path)
-            date_registered = self.date_register.get(item[1])
-            if (date_registered is not None):
-                self.collected_files[file_path].append(date_registered)
-            else:
-                date_now = date.today().year
-                self.collected_files[file_path].append(date_now)
-
-    def create_and_copy_to_folder(self):
         for file_path, info in self.collected_files.items():
-            date = str(info[2])
-            parent_path = os.path.join(self.to_directory, date, self.root)
+            print("PP", self.to_directory)
+            constructed_path = (
+                self.to_directory + "/" + info.constructed_path
+            )
             self.progress += 1
-            if not os.path.exists(parent_path):
-                os.makedirs(parent_path)
+            if not os.path.exists(constructed_path):
+                os.makedirs(constructed_path)
+
+            device = info.device
 
             try:
-                file_name = info[0]
-                new_file_path = os.path.join(parent_path, file_name)
-                self.items.append(new_file_path)
-                shutil.copy2(file_path, new_file_path)
-                # print(f"Copied {file_name} to {parent_path}")
+                file_name = info.filename
+                new_file_path = os.path.join(
+                    constructed_path, file_name
+                )
+                if device is not None:
+                    try:
+                        file_bytes = (
+                            await device.get_file_content(
+                                info.source_path
+                            )
+                        )
+                        file_bytes = BytesIO(file_bytes)
+                        with open(new_file_path, "wb") as destination_file:
+                            destination_file.write(file_bytes.read())
+                    except RuntimeError as re:
+                        print(f"Event loop error for {file_name}: {re}")
+                        continue
+                else:
+                    shutil.copy2(file_path, new_file_path)
+                # print(f"Copied {file_name} to {constructed_path}")
             except Exception as e:
                 print(f"Error copying {file_name}: {e}")
 
-    def is_heic_image(self, extension):
-        return is_HEIC_file(extension[0])
+    def is_heic_image(self, value):
+        if isinstance(value, tuple):
+            file_path, info = value
+            if isinstance(info, FileInfo):
+                return is_HEIC_file(info.filename)
+            return is_HEIC_file(file_path)
+
+        if isinstance(value, FileInfo):
+            return is_HEIC_file(value.filename)
+
+        return is_HEIC_file(value)

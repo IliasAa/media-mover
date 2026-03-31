@@ -13,6 +13,11 @@ class OptionsMenu(ctk.CTkFrame):
         label.pack(pady=22, padx=10)
 
         export_button = ctk.CTkButton(master=self,
-                                      text="Export",
+                                      text="Export ➡",
                                       command=lambda: {})
         export_button.pack(pady=5)
+
+        settings_button = ctk.CTkButton(master=self,
+                                        text="Settings ⚙",
+                                        command=lambda: {})
+        settings_button.pack(pady=5)

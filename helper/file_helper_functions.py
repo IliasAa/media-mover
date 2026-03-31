@@ -1,11 +1,15 @@
 import hashlib
+import json
 import os
+import re
+from collections import defaultdict
+import subprocess
+
+import ffmpeg
 from PIL import Image
 from PIL.ExifTags import TAGS
-import re
-import ffmpeg
-from collections import defaultdict
 
+from models.dataclass.data_class import FileInfo
 
 image_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.heic', '.jpg')
 video_extensions = ('.mp4',
@@ -57,7 +61,7 @@ def find_date_in_text(file_path):
     if (len(dates) > 0):
         found_date = dates[0]
         if found_date.startswith("20") or found_date.startswith("19"):
-            return dates[0]
+            return int(dates[0])
     return None  # Return current year if no date found
 
 
@@ -70,8 +74,8 @@ def get_image_date(file_path):
             print(f"EXIF data for {file_path}:")
             for tag, value in exif_data.items():
                 tag_name = TAGS.get(tag, tag)
-                print(f"EXIF Tag: {tag_name}, Value: {value}")
-                if tag_name == 'DateTimeOriginal':
+                # print(f"EXIF Tag: {tag_name}, Value: {value}")
+                if tag_name == 'DateTime' or tag_name == 'DateTimeOriginal':
                     return find_date_in_text(value)
             print("")
         else:
@@ -109,24 +113,71 @@ def calculate_hash(file_path):
     return hash_md5.hexdigest()
 
 
-def tree_generator_text(collected_files, to_directory):
-    tree_text = f"📂{to_directory}\n" if collected_files.items() else \
-        "No files are processed."
+def calculate_hash_for_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
-    # parent -> date -> files
-    res = defaultdict(lambda: defaultdict(list))
 
-    for file_path, file_info in collected_files.items():
-        filename, parent_dir, date = file_info
-        res[parent_dir][date].append(file_path)
+def tree_generator_text(collected_files: dict[str, 'FileInfo'], to_directory: str, total_items: int) -> str:
+    """
+    Generate a text-based tree for collected files.
 
-    for parent_dir in sorted(res.keys()):
-        tree_text += f"├─ 📂{parent_dir}/\n"
+    collected_files: dict mapping source_path -> FileInfo
+    to_directory: base directory name for the tree
+    total_items: total number of items processed
+    """
+    if not collected_files:
+        return "No files are processed."
+    tree_text = f"{total_items} amount of files to be processed:\n"
+    tree_text += f"{len(collected_files)} files processed:\n"
+    tree_text += f"📂{to_directory}\n"
+    dict_tree = defaultdict(list)
 
-        for date in sorted(res[parent_dir].keys()):
-            tree_text += f"│  ├─ 📂{date}/\n"
+    print(f"Generating tree for {len(collected_files)} files.")
 
-            for file_path in sorted(res[parent_dir][date]):
-                tree_text += f"│  │  ├─ 📄{os.path.basename(file_path)}\n"
+    # Build nested dict structure
+    for source_path, file_info in collected_files.items():
+        constructed_path = file_info.constructed_path or "unknown_path"
+        normalized_path = os.path.normpath(constructed_path)
+        path_parts = normalized_path.split(os.sep)
 
+        current_dict = dict_tree
+        for part in path_parts:
+            if is_media_file(part):
+                # Stop descending at the file itself
+                break
+            if part not in current_dict:
+                current_dict[part] = {}
+            current_dict = current_dict[part]
+
+        # Add the filename at the leaf
+        current_dict[file_info.filename] = {}
+
+    # Recursive function to build text
+    def recurse(d: dict, prefix=""):
+        lines = []
+        for i, (key, subdict) in enumerate(sorted(d.items())):
+            connector = "└─ " if i == len(d) - 1 else "├─ "
+            if subdict:  # Directory
+                lines.append(f"{prefix}{connector}📂{key}")
+                extension = "    " if i == len(d) - 1 else "│   "
+                lines.extend(recurse(subdict, prefix + extension))
+            else:  # File
+                lines.append(f"{prefix}{connector}📄{key}")
+        return lines
+
+    tree_lines = recurse(dict_tree)
+    tree_text += "\n".join(tree_lines)
     return tree_text
+
+
+def modify_image_metadata(image_bytes: bytes) -> dict:
+    result = subprocess.run(
+        ["exiftool", "-ee", "-j", "-"],
+        input=image_bytes,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+
+    data = json.loads(result.stdout)
+
+    return data[0]

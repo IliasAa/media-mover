@@ -1,11 +1,14 @@
-from devices.detector import DeviceDetector
+import asyncio
+from models.devices import DeviceDetector
 from screens.export.export_screen import ExportScreen
 from models.file_transfer.file_transfer import FileTransferManager
 
 
 class ExportController:
-    def __init__(self, master, fileTransferManager: FileTransferManager):
+    def __init__(self, master, fileTransferManager: FileTransferManager,
+                 async_loop: asyncio.AbstractEventLoop):
         self.subject = fileTransferManager
+        self.async_loop = async_loop
         self.detector = DeviceDetector()
         self.devices = []
         self.show_export_screen(master)
@@ -26,25 +29,43 @@ class ExportController:
     async def check_for_connected_devices(self):
         '''Check for connected devices and update the export screen
         accordingly'''
-        self.devices = await self.detector.detect()
+        try:
+            detected_devices = await self.detector.detect()
+            for device in detected_devices:
+                await device.connect()
+                if (
+                    device.get_device_name()
+                    not in self.get_all_device_names()
+                ):
+                    await device.get_all_files()
+                    print(
+                        f"Device {device.get_device_name()} "
+                        "registered with files"
+                    )
+                    self.devices.append(device)
+                else:
+                    print(
+                        f"Device {device.get_device_name()} "
+                        "already registered."
+                    )
 
-        for device in self.devices:
-            await device.connect()
-            print(f"Detected device: {device.get_device_name()}")
-            print(f"Device ID: {device.get_device_id()}")
-            # Here you would add logic to update the export screen with the
-            # detected devices, e.g., by adding them to a list or dropdown.
-        self.my_frame.set_found_devices()
+            self.my_frame.after(0, self.my_frame.set_found_devices)
+        except Exception as e:
+            print(f"Error detecting devices: {e}")
 
     def get_all_device_names(self):
         '''Return a list of all detected device names'''
         return [device.get_device_name() for device in self.devices]
 
-    def start_progress(self):
-        self.subject.start_progress()
+    async def start_progress(self):
+        print("Starting progress... with devices:", self.devices)
+        await self.subject.start_progress(self.devices)
 
     def clear_progress(self):
         self.subject.clear_progress()
+
+    async def save_progress(self):
+        await self.subject.create_and_copy_to_folder()
 
     def set_from_directory(self, from_directory):
         '''Set the source directory for file transfer'''

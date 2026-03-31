@@ -15,7 +15,6 @@ class Observer(ABC):
         """
         Receive update from subject.
         """
-        pass
 
 
 """
