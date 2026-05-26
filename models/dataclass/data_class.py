@@ -13,5 +13,5 @@ class FileInfo:
     source_path: str
     filename: str
     year: int
-    device: Device
+    # device: Device
     constructed_path: str = None

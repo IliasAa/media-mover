@@ -1,5 +1,7 @@
+from ast import List
 import asyncio
 from models.devices import DeviceDetector
+from models.devices.device import Device
 from screens.export.export_screen import ExportScreen
 from models.file_transfer.file_transfer import FileTransferManager
 
@@ -12,6 +14,7 @@ class ExportController:
         self.detector = DeviceDetector()
         self.devices = []
         self.show_export_screen(master)
+        self._progress_lock = asyncio.Lock()
         # Register the ExportScreen as an observer to the FileTransferManager
         self.subject.attach(self.my_frame)
         # self.check_for_connected_devices()
@@ -38,16 +41,7 @@ class ExportController:
                     not in self.get_all_device_names()
                 ):
                     await device.get_all_files()
-                    print(
-                        f"Device {device.get_device_name()} "
-                        "registered with files"
-                    )
                     self.devices.append(device)
-                else:
-                    print(
-                        f"Device {device.get_device_name()} "
-                        "already registered."
-                    )
 
             self.my_frame.after(0, self.my_frame.set_found_devices)
         except Exception as e:
@@ -58,8 +52,11 @@ class ExportController:
         return [device.get_device_name() for device in self.devices]
 
     async def start_progress(self):
-        print("Starting progress... with devices:", self.devices)
         await self.subject.start_progress(self.devices)
+
+    async def start_progress_safe(self):
+        async with self._progress_lock:
+            await self.start_progress()
 
     def clear_progress(self):
         self.subject.clear_progress()

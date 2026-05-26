@@ -147,7 +147,6 @@ class ExportScreen(ctk.CTkFrame, Observer):
         )
 
     def set_files_created(self) -> None:
-        print("Setting files created in the export screen widget.")
         self.file_menu = FolderOverview(
             self, items=self.collected_files, to_directory=self.to_directory, total_items=self.total_items)
         self.file_menu.grid(
@@ -182,7 +181,7 @@ class ExportScreen(ctk.CTkFrame, Observer):
         self.actions_button = ActionsButton(
             self,
             start=lambda: asyncio.run_coroutine_threadsafe(
-                self.controller.start_progress(), self.controller.async_loop
+                self.controller.start_progress_safe(), self.controller.async_loop
             ),
             clear=self.controller.clear_progress,
             scan=lambda: print("Scan clicked"),

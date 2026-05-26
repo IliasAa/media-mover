@@ -1,4 +1,5 @@
 from ast import List
+import gc
 from io import BytesIO
 import os
 import shutil
@@ -10,7 +11,6 @@ from helper.file_helper_functions import (
     is_image_file,
     is_video_file,
     calculate_hash,
-    is_HEIC_file,
 )
 import concurrent.futures
 from models.file_path import FilePathConstructor, DirectoryOrder
@@ -90,7 +90,6 @@ class FileTransferManager(Subject):
         self.notify()
 
     async def start_progress(self, devices: List[Device]):
-        print(len(self.collected_files))
         if (
             self.from_directory and self.to_directory
             or len(devices) > 0
@@ -99,30 +98,30 @@ class FileTransferManager(Subject):
                 await self.collect_all_media_from_device(device)
             self.collect_all_media_from_directory()
             # self.notify()
-            # self.add_date_name(self.collected_files)
-            # self.handle_no_date_files()
-            # self.create_and_copy_to_folder()
-            self.notify()
 
     async def collect_all_media_from_device(self, device: Device):
-        self.path_constructor = FilePathConstructor(
-            device_id=device.get_device_id(),
-            order_of_directories=order
-        )
-        count = 0
-        self.amount_of_files_collected += len(device.registered_paths)
-        for path in device.registered_paths:
-            await self.process_file_from_device(device, path)
-            if count % 20 == 0:  # Notify every 10 files processed
-                self.notify()
-            count += 1
+        try:
+            self.path_constructor = FilePathConstructor(
+                device_id=device.get_device_id(),
+                order_of_directories=order
+            )
+            count = 0
+            self.amount_of_files_collected += len(device.registered_paths)
+            for path in device.registered_paths:
+                await self.process_file_from_device(device, path)
+                if count % 20 == 0:  # Notify every 10 files processed
+                    self.notify()
+                    gc.collect()
+                count += 1
 
-        self.notify()  # Final notification after processing all files
+        except Exception as e:
+            print(f"Error collecting media from device "
+                  f"{device.get_device_name()}: {e}")
 
     def collect_all_media_from_directory(self):
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             futures = []
-            for root_dir, dirs, files in os.walk(self.from_directory):
+            for root_dir, __, files in os.walk(self.from_directory):
                 for filename in files:
                     futures.append(
                         executor.submit(self.process_file, root_dir, filename))
@@ -137,12 +136,12 @@ class FileTransferManager(Subject):
                         source_path=path,
                         filename=os.path.basename(path),
                         year=None,
-                        device=device
                     )
                     file_info.constructed_path = (
                         await self.path_constructor
                         .construct_destination_path(
-                            file_info
+                            file_info,
+                            device
                         )
                     )
                     self.collected_files[path] = file_info
@@ -152,16 +151,14 @@ class FileTransferManager(Subject):
                         source_path=path,
                         filename=os.path.basename(path),
                         year=None,
-                        device=device
                     )
                     file_info.constructed_path = (
                         await self.path_constructor
                         .construct_destination_path(
-                            file_info
+                            file_info, device
                         )
                     )
                     self.collected_files[path] = file_info
-            # self.notify()
 
     def process_file(self, root, filename, device=None):
         if is_media_file(filename):
@@ -177,7 +174,6 @@ class FileTransferManager(Subject):
                         source_path=file_path,
                         filename=filename,
                         year=None,
-                        device=device  # You can set the device here if needed
                     )
                     self.collected_files[file_path] = file_info
                 elif is_video_file(filename):
@@ -186,7 +182,6 @@ class FileTransferManager(Subject):
                         source_path=file_path,
                         filename=filename,
                         year=None,
-                        device=device  # You can set the device here if needed
                     )
                     self.collected_files[file_path] = file_info
 
@@ -206,7 +201,6 @@ class FileTransferManager(Subject):
             return
 
         for file_path, info in self.collected_files.items():
-            print("PP", self.to_directory)
             constructed_path = (
                 self.to_directory + "/" + info.constructed_path
             )
@@ -239,15 +233,3 @@ class FileTransferManager(Subject):
                 # print(f"Copied {file_name} to {constructed_path}")
             except Exception as e:
                 print(f"Error copying {file_name}: {e}")
-
-    def is_heic_image(self, value):
-        if isinstance(value, tuple):
-            file_path, info = value
-            if isinstance(info, FileInfo):
-                return is_HEIC_file(info.filename)
-            return is_HEIC_file(file_path)
-
-        if isinstance(value, FileInfo):
-            return is_HEIC_file(value.filename)
-
-        return is_HEIC_file(value)

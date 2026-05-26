@@ -10,26 +10,26 @@ class FilePathConstructor:
         self.device_id = device_id
         self.order_of_directories = order_of_directories
 
-    async def resolve_directory(self, dir_key: str, file_info):
+    async def resolve_directory(self, dir_key: str, file_info, device: Device):
         if dir_key == "device":
-            return file_info.device.get_device_name().replace(" ", "_").lower() or "unknown_device"
+            return device.get_device_name().replace(
+                " ", "_").lower() or "unknown_device"
         if dir_key == "exif_data":
-            sorted_dirs = await self.add_relevant_exif_data(file_info.source_path, file_info.device)
+            sorted_dirs = await self.add_relevant_exif_data(
+                file_info.source_path, device)
             # Combine into a single path string or multiple directories
             return "/".join(d.directory for d in sorted_dirs)
 
         return dir_key
 
-    async def construct_destination_path(self, file_info) -> str:
+    async def construct_destination_path(self, file_info, device: Device) -> str:
         self.dirs_in_order = []
 
         for d in self.order_of_directories:
-            dir_name = await self.resolve_directory(d.directory, file_info)
+            dir_name = await self.resolve_directory(d.directory, file_info, device)
             self.dirs_in_order.append((d.order, dir_name))
         # Sort by order
         self.dirs_in_order.sort(key=lambda x: x[0])
-
-        print(f"Constructed directories in order: {self.dirs_in_order}")
 
         # Extract directory names only
         ordered_dirs = [d for _, d in self.dirs_in_order]

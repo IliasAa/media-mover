@@ -1,3 +1,4 @@
+import gc
 import hashlib
 import json
 import os
@@ -170,14 +171,31 @@ def tree_generator_text(collected_files: dict[str, 'FileInfo'], to_directory: st
     return tree_text
 
 
+TAGS_NEEDED = [
+    "-Model",
+    "-LensModel",
+    "-Description",
+    "-Author",
+    "-DateTimeOriginal",
+    "-CreateDate",
+    "-ModifyDate",
+    "-FileModifyDate",
+    "-FileAccessDate",
+]
+
+
 def modify_image_metadata(image_bytes: bytes) -> dict:
     result = subprocess.run(
-        ["exiftool", "-ee", "-j", "-"],
+        ["exiftool", "-j", *TAGS_NEEDED, "-"],
         input=image_bytes,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
 
     data = json.loads(result.stdout)
+    del result  # Free memory immediately after use
+    gc.collect()
+    if not data:
+        return {}
 
-    return data[0]
+    return data[0]  # 🔥 critical fix

@@ -49,8 +49,10 @@ class App(ctk.CTk):
                                                     self.file_transfer_manager,
                                                     self.async_loop)
 
-        self.mainloop()
+        # self.mainloop()
 
 
 if __name__ == "__main__":
-    App()
+    app = App()
+    app.eval("tk::PlaceWindow . right")
+    app.mainloop()
