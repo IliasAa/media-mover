@@ -1,8 +1,8 @@
 import os
+import customtkinter as ctk
 os.environ["TK_SILENCE_DEPRECATION"] = "1"
 os.environ["CTK_FORCE_API"] = "SOFTWARE"
 
-import customtkinter as ctk
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
