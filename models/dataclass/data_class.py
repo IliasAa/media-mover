@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from models.devices import Device
 
 
 @dataclass

@@ -1,20 +1,14 @@
-from ast import List
-import asyncio
 from models.devices import DeviceDetector
-from models.devices.device import Device
 from screens.export.export_screen import ExportScreen
 from models.file_transfer.file_transfer import FileTransferManager
 
 
 class ExportController:
-    def __init__(self, master, fileTransferManager: FileTransferManager,
-                 async_loop: asyncio.AbstractEventLoop):
+    def __init__(self, master, fileTransferManager: FileTransferManager):
         self.subject = fileTransferManager
-        self.async_loop = async_loop
         self.detector = DeviceDetector()
         self.devices = []
         self.show_export_screen(master)
-        self._progress_lock = asyncio.Lock()
         # Register the ExportScreen as an observer to the FileTransferManager
         self.subject.attach(self.my_frame)
         # self.check_for_connected_devices()
@@ -55,8 +49,7 @@ class ExportController:
         await self.subject.start_progress(self.devices)
 
     async def start_progress_safe(self):
-        async with self._progress_lock:
-            await self.start_progress()
+        await self.start_progress()
 
     def clear_progress(self):
         self.subject.clear_progress()

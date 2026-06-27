@@ -1,5 +1,3 @@
-import asyncio
-
 import customtkinter as ctk
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -116,9 +114,7 @@ class ExportScreen(ctk.CTkFrame, Observer):
             from_callback,
             entry_text="From directory",
             text_button="Browse From Directory",
-            scan_devices_func=lambda: asyncio.run_coroutine_threadsafe(
-                self.controller.check_for_connected_devices(), self.controller.async_loop
-            )
+            scan_devices_func=self.controller.check_for_connected_devices
         )
         self.fromDirInput.grid(
             row=2,
@@ -180,14 +176,10 @@ class ExportScreen(ctk.CTkFrame, Observer):
     def set_actions_buttons(self):
         self.actions_button = ActionsButton(
             self,
-            start=lambda: asyncio.run_coroutine_threadsafe(
-                self.controller.start_progress_safe(), self.controller.async_loop
-            ),
+            start=self.controller.start_progress_safe,
             clear=self.controller.clear_progress,
             scan=lambda: print("Scan clicked"),
-            save=lambda: asyncio.run_coroutine_threadsafe(
-                self.controller.save_progress(), self.controller.async_loop
-            )
+            save=self.controller.save_progress
         )
         self.actions_button.grid(
             row=7,

@@ -1,8 +1,6 @@
-import asyncio
 from enum import Enum
 import gc
 import os
-from shutil import Error
 from pymobiledevice3.lockdown import create_using_usbmux
 from pymobiledevice3.services.afc import AfcService, datetime
 from helper.file_helper_functions import (
@@ -51,7 +49,6 @@ class IphoneDevice(Device):
         self.registered_paths = []
         self.device_manager = None
         self.unique_names = set()
-        self._file_semaphore = asyncio.Semaphore(2)
         register_heif_opener()
 
     def __repr__(self):
@@ -95,12 +92,11 @@ class IphoneDevice(Device):
         return self.registered_paths
 
     async def get_file_content(self, file_path):
-        async with self._file_semaphore:
-            try:
-                return await self.device_manager.get_file_contents(file_path)
-            except Exception as e:
-                print(f"Error getting file content for {file_path}: {e}")
-                return None
+        try:
+            return await self.device_manager.get_file_contents(file_path)
+        except Exception as e:
+            print(f"Error getting file content for {file_path}: {e}")
+            return None
 
     async def copy_file_to_path(self, source_path: str, destination_path: str):
         try:
@@ -123,7 +119,6 @@ class IphoneDevice(Device):
         Values: DirectoryOrder(order, value)
         """
         try:
-            # raise Error("testing")
             data = await self.get_file_content(source_path)
             if data is None:
                 raise ValueError(

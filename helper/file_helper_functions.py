@@ -198,4 +198,4 @@ def modify_image_metadata(image_bytes: bytes) -> dict:
     if not data:
         return {}
 
-    return data[0]  # 🔥 critical fix
+    return data[0]

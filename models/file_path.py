@@ -42,12 +42,14 @@ class FilePathConstructor:
     async def add_relevant_exif_data(self, source_path,  device: Device):
         if device is not None:
             if is_image_file(source_path):
-                exif_dirs = await device.get_exif_from_image(source_path, order=1)
+                exif_dirs = await device.get_exif_from_image(source_path,
+                                                             order=1)
                 # Sort by order dynamically
                 return sorted(exif_dirs.values(), key=lambda x: x.order)
 
             elif is_video_file(source_path):
-                exif_dirs = await device.get_exif_from_video(source_path, order=1)
+                exif_dirs = await device.get_exif_from_video(source_path,
+                                                             order=1)
                 return sorted(exif_dirs.values(), key=lambda x: x.order)
 
         return None

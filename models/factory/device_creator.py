@@ -15,7 +15,6 @@ class DeviceCreator(ABC):
         Note that the DeviceCreator may also provide some default
         implementation of the factory method.
         """
-        pass
 
     def some_operation(self) -> str:
         """
