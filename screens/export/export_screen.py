@@ -114,7 +114,7 @@ class ExportScreen(ctk.CTkFrame, Observer):
             from_callback,
             entry_text="From directory",
             text_button="Browse From Directory",
-            scan_devices_func=self.controller.check_for_connected_devices
+            scan_devices_func=self.controller.check_for_connected_devices_safe
         )
         self.fromDirInput.grid(
             row=2,
@@ -179,7 +179,7 @@ class ExportScreen(ctk.CTkFrame, Observer):
             start=self.controller.start_progress_safe,
             clear=self.controller.clear_progress,
             scan=lambda: print("Scan clicked"),
-            save=self.controller.save_progress
+            save=self.controller.save_progress_safe
         )
         self.actions_button.grid(
             row=7,

@@ -199,3 +199,19 @@ def modify_image_metadata(image_bytes: bytes) -> dict:
         return {}
 
     return data[0]
+
+
+def modify_image_metadata_from_file(file_path: str) -> dict:
+    result = subprocess.run(
+        ["exiftool", "-j", *TAGS_NEEDED, file_path],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+
+    data = json.loads(result.stdout)
+    del result  # Free memory immediately after use
+    gc.collect()
+    if not data:
+        return {}
+
+    return data[0]

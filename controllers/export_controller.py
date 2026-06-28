@@ -1,3 +1,6 @@
+import asyncio
+import threading
+
 from models.devices import DeviceDetector
 from screens.export.export_screen import ExportScreen
 from models.file_transfer.file_transfer import FileTransferManager
@@ -8,10 +11,38 @@ class ExportController:
         self.subject = fileTransferManager
         self.detector = DeviceDetector()
         self.devices = []
+        # Create a new loop for running asynchronous tasks in a separate thread
+        self._event_loop = asyncio.new_event_loop()
+        # Start the event loop in a separate thread
+        self._event_loop_thread = threading.Thread(
+            target=self._run_event_loop,
+            daemon=True,
+        ).start()
         self.show_export_screen(master)
         # Register the ExportScreen as an observer to the FileTransferManager
         self.subject.attach(self.my_frame)
         # self.check_for_connected_devices()
+
+    def _run_event_loop(self):
+        asyncio.set_event_loop(self._event_loop)
+        self._event_loop.run_forever()
+
+    def _run_async_task(self, coroutine):
+        future = asyncio.run_coroutine_threadsafe(coroutine, self._event_loop)
+        future.add_done_callback(self._handle_async_exception)
+        return future
+
+    def start_progress_safe(self):
+        self._run_async_task(self.start_progress())
+
+    def check_for_connected_devices_safe(self):
+        self._run_async_task(self.check_for_connected_devices())
+
+    def _handle_async_exception(self, future):
+        try:
+            future.result()
+        except Exception as e:
+            print(f"Async task error: {e}")
 
     def show_export_screen(self, master):
         '''Display the export screen on the main application window'''
@@ -48,14 +79,14 @@ class ExportController:
     async def start_progress(self):
         await self.subject.start_progress(self.devices)
 
-    async def start_progress_safe(self):
-        await self.start_progress()
-
     def clear_progress(self):
         self.subject.clear_progress()
 
     async def save_progress(self):
         await self.subject.create_and_copy_to_folder()
+
+    def save_progress_safe(self):
+        self._run_async_task(self.save_progress())
 
     def set_from_directory(self, from_directory):
         '''Set the source directory for file transfer'''
@@ -69,7 +100,9 @@ class ExportController:
         self.subject.filter_blurry = not self.subject.filter_blurry
 
     def toggle_date_folders(self):
-        self.subject.create_date_folders = not self.subject.create_date_folders
+        self.subject.create_date_folders = (
+            not self.subject.create_date_folders
+        )
 
     def toggle_lookalikes(self):
         self.subject.filter_lookalikes = not self.subject.filter_lookalikes

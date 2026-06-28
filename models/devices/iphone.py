@@ -1,6 +1,7 @@
 from enum import Enum
 import gc
 import os
+import tempfile
 from pymobiledevice3.lockdown import create_using_usbmux
 from pymobiledevice3.services.afc import AfcService, datetime
 from helper.file_helper_functions import (
@@ -8,6 +9,7 @@ from helper.file_helper_functions import (
     is_media_file,
     is_video_file,
     modify_image_metadata,
+    modify_image_metadata_from_file,
 )
 from models.dataclass.data_class import DirectoryOrder
 from models.devices import Device
@@ -124,7 +126,11 @@ class IphoneDevice(Device):
                 raise ValueError(
                     "No data returned for image metadata extraction"
                 )
-            metadata = modify_image_metadata(data)
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                tmp_file.write(data)
+                tmp_file_path = tmp_file.name
+            metadata = modify_image_metadata_from_file(tmp_file_path)
+            os.unlink(tmp_file_path)
             del data  # Free memory immediately after use
             gc.collect()  # Force garbage collection to free memory
 
@@ -193,7 +199,11 @@ class IphoneDevice(Device):
                 raise ValueError(
                     "No data returned for video metadata extraction"
                 )
-            metadata = modify_image_metadata(data)
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                tmp_file.write(data)
+                tmp_file_path = tmp_file.name
+            metadata = modify_image_metadata_from_file(tmp_file_path)
+            os.unlink(tmp_file_path)
             del data  # Free memory immediately after use
             gc.collect()  # Force garbage collection to free memory
 
