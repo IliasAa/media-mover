@@ -11,32 +11,31 @@ class ExportController:
         self.subject = fileTransferManager
         self.detector = DeviceDetector()
         self.devices = []
-        # Create a new loop for running asynchronous tasks in a separate thread
-        self._event_loop = asyncio.new_event_loop()
-        # Start the event loop in a separate thread
-        self._event_loop_thread = threading.Thread(
-            target=self._run_event_loop,
-            daemon=True,
-        ).start()
         self.show_export_screen(master)
         # Register the ExportScreen as an observer to the FileTransferManager
         self.subject.attach(self.my_frame)
-        # self.check_for_connected_devices()
-
-    def _run_event_loop(self):
-        asyncio.set_event_loop(self._event_loop)
-        self._event_loop.run_forever()
-
-    def _run_async_task(self, coroutine):
-        future = asyncio.run_coroutine_threadsafe(coroutine, self._event_loop)
-        future.add_done_callback(self._handle_async_exception)
-        return future
 
     def start_progress_safe(self):
-        self._run_async_task(self.start_progress())
+        self._run_in_thread(self.start_progress)
 
     def check_for_connected_devices_safe(self):
-        self._run_async_task(self.check_for_connected_devices())
+        self._run_in_thread(self.check_for_connected_devices)
+
+    def save_progress_safe(self):
+        self._run_in_thread(self.save_progress)
+
+    def _run_in_thread(self, coro_func, *args):
+        """Run an async method in an isolated background thread."""
+        def thread_target():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                self.sem = asyncio.Semaphore(1)
+                loop.run_until_complete(coro_func(*args))
+            finally:
+                loop.close()
+
+        threading.Thread(target=thread_target, daemon=True).start()
 
     def _handle_async_exception(self, future):
         try:
@@ -84,9 +83,6 @@ class ExportController:
 
     async def save_progress(self):
         await self.subject.create_and_copy_to_folder()
-
-    def save_progress_safe(self):
-        self._run_async_task(self.save_progress())
 
     def set_from_directory(self, from_directory):
         '''Set the source directory for file transfer'''

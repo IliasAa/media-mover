@@ -8,8 +8,7 @@ from helper.file_helper_functions import (
     find_date_in_text,
     is_media_file,
     is_video_file,
-    modify_image_metadata,
-    modify_image_metadata_from_file,
+    extract_metadata_fast,
 )
 from models.dataclass.data_class import DirectoryOrder
 from models.devices import Device
@@ -47,9 +46,9 @@ class IphoneDevice(Device):
         self.type = DeviceType.IOS
         self.udid = udid
         self.connection_type = connection_type
-        self.lockdown = None
+        self.lock_down = None
         self.registered_paths = []
-        self.device_manager = None
+        # self.device_manager = None
         self.unique_names = set()
         register_heif_opener()
 
@@ -61,14 +60,20 @@ class IphoneDevice(Device):
         )
 
     async def connect(self):
-        self.lockdown = await create_using_usbmux(self.udid)
-        self.device_manager = AfcService(self.lockdown)
+        self.lock_down = await create_using_usbmux(self.udid)
+        # self.device_manager = AfcService(self.lockdown)
+
+    async def open_afc(self):
+        """Create a fresh AfcService on whatever loop is currently running."""
+        self.lock_down = await create_using_usbmux(self.udid)
+        return AfcService(self.lock_down)
 
     async def get_all_files(self):
-        folders = await self.device_manager.listdir(MEDIA_FOLDER)
+        afc = await self.open_afc()
+        folders = await afc.listdir(MEDIA_FOLDER)
 
         for folder in folders:
-            files_in_folder = await self.device_manager.listdir(
+            files_in_folder = await afc.listdir(
                 f"{MEDIA_FOLDER}/{folder}"
             )
 
@@ -94,15 +99,35 @@ class IphoneDevice(Device):
         return self.registered_paths
 
     async def get_file_content(self, file_path):
+        afc = await self.open_afc()
         try:
-            return await self.device_manager.get_file_contents(file_path)
+            return await afc.get_file_contents(file_path)
         except Exception as e:
             print(f"Error getting file content for {file_path}: {e}")
             return None
 
-    async def copy_file_to_path(self, source_path: str, destination_path: str):
+    async def get_partial_file(self, file_path: str, max_bytes: int) -> bytes:
+        """Download only the first max_bytes of a file for metadata only."""
+        afc = await self.open_afc()
         try:
-            await self.device_manager.pull(
+            resolved_path = await afc.resolve_path(file_path)
+            info = await afc.stat(resolved_path)
+            read_size = min(max_bytes, int(info["st_size"]))
+            handle = await afc.fopen(resolved_path, "r")
+            if not handle:
+                return None
+            try:
+                return await afc.fread(handle, read_size)
+            finally:
+                await afc.fclose(handle)
+        except Exception as e:
+            print(f"Error reading partial file {file_path}: {e}")
+            return None
+
+    async def copy_file_to_path(self, source_path: str, destination_path: str):
+        afc = await self.open_afc()
+        try:
+            await afc.pull(
                 source_path,
                 destination_path,
                 progress_bar=False,
@@ -112,7 +137,7 @@ class IphoneDevice(Device):
             raise
 
     def get_device_name(self):
-        return self.lockdown.all_values.get("DeviceName")
+        return self.lock_down.all_values.get("DeviceName")
 
     async def get_exif_from_image(self, source_path, order=1) -> tuple:
         """
@@ -121,17 +146,20 @@ class IphoneDevice(Device):
         Values: DirectoryOrder(order, value)
         """
         try:
-            data = await self.get_file_content(source_path)
+            data = await self.get_partial_file(source_path, 512 * 1024)
             if data is None:
                 raise ValueError(
                     "No data returned for image metadata extraction"
                 )
-            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            with tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=os.path.splitext(source_path)[1],
+            ) as tmp_file:
                 tmp_file.write(data)
+                del data  # Free memory immediately after use
                 tmp_file_path = tmp_file.name
-            metadata = modify_image_metadata_from_file(tmp_file_path)
+            metadata = extract_metadata_fast(tmp_file_path)
             os.unlink(tmp_file_path)
-            del data  # Free memory immediately after use
             gc.collect()  # Force garbage collection to free memory
 
             extracted_data = {}
@@ -194,17 +222,20 @@ class IphoneDevice(Device):
     async def get_exif_from_video(self, source_path, order=1) -> dict:
         try:
             # raise Error("testing")  # Placeholder until implemented
-            data = await self.get_file_content(source_path)
+            data = await self.get_partial_file(source_path, 1024 * 1024)
             if data is None:
                 raise ValueError(
                     "No data returned for video metadata extraction"
                 )
-            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            with tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=os.path.splitext(source_path)[1],
+            ) as tmp_file:
                 tmp_file.write(data)
                 tmp_file_path = tmp_file.name
-            metadata = modify_image_metadata_from_file(tmp_file_path)
+                del data  # Free memory immediately after use
+            metadata = extract_metadata_fast(tmp_file_path)
             os.unlink(tmp_file_path)
-            del data  # Free memory immediately after use
             gc.collect()  # Force garbage collection to free memory
 
             extracted_data = {}
@@ -276,10 +307,10 @@ class IphoneDevice(Device):
             }
 
     def get_device_id(self):
-        return self.lockdown.all_values.get("UniqueDeviceID")
+        return self.lock_down.all_values.get("UniqueDeviceID")
 
     def get_device_model(self):
-        return self.lockdown.all_values.get("ProductType")
+        return self.lock_down.all_values.get("ProductType")
 
     def get_device_type(self):
         return "iPhone"
