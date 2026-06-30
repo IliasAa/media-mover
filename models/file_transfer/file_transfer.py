@@ -109,10 +109,11 @@ class FileTransferManager(Subject):
             self.amount_of_files_collected += len(device.registered_paths)
             for path in device.registered_paths:
                 await self.process_file_from_device(device, path)
-                if count % 20 == 0:  # Notify every 10 files processed
+                if count % 20 == 0:
                     self.notify()
                     gc.collect()
                 count += 1
+            self.notify()
 
         except Exception as e:
             print(f"Error collecting media from device "
@@ -136,6 +137,7 @@ class FileTransferManager(Subject):
                         source_path=path,
                         filename=os.path.basename(path),
                         year=None,
+                        device=device
                     )
                     file_info.constructed_path = (
                         await self.path_constructor
@@ -151,6 +153,7 @@ class FileTransferManager(Subject):
                         source_path=path,
                         filename=os.path.basename(path),
                         year=None,
+                        device=device
                     )
                     file_info.constructed_path = (
                         await self.path_constructor
@@ -174,6 +177,7 @@ class FileTransferManager(Subject):
                         source_path=file_path,
                         filename=filename,
                         year=None,
+                        device=device
                     )
                     self.collected_files[file_path] = file_info
                 elif is_video_file(filename):
@@ -182,6 +186,7 @@ class FileTransferManager(Subject):
                         source_path=file_path,
                         filename=filename,
                         year=None,
+                        device=device
                     )
                     self.collected_files[file_path] = file_info
 
@@ -191,7 +196,7 @@ class FileTransferManager(Subject):
                     source_path=file_path,
                     filename=filename,
                     year=None,
-                    device=None
+                    device=device
                 )
                 self.collected_duplicates[file_path] = file_info
 

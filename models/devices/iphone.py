@@ -28,6 +28,7 @@ class IosTags(Enum):
     LENS_MODEL = "LensModel"
     AUTHOR = "Author"
     DESCRIPTION = "Description"
+    USER_COMMENT = "UserComment"
 
 
 DATE_KEYS = [IosTags.DATETIME.value,
@@ -139,6 +140,110 @@ class IphoneDevice(Device):
     def get_device_name(self):
         return self.lock_down.all_values.get("DeviceName")
 
+    def _has_embedded_date(self, metadata: dict) -> bool:
+        embedded_date_keys = [
+            IosTags.DATETIME.value,
+            IosTags.DATETIME_ORIGINAL.value,
+            IosTags.CREATE_DATE.value,
+            IosTags.CREATION_DATE.value,
+        ]
+        return any(metadata.get(key) for key in embedded_date_keys)
+
+    def _has_contextual_metadata(self, metadata: dict) -> bool:
+        contextual_keys = [
+            IosTags.MODEL.value,
+            IosTags.LENS_MODEL.value,
+            IosTags.AUTHOR.value,
+            IosTags.DESCRIPTION.value,
+        ]
+        return any(metadata.get(key) for key in contextual_keys)
+
+    def _is_empty_value(self, value) -> bool:
+        """Check if a value is empty or should be ignored."""
+        if value is None:
+            return True
+        empty_values = ("", "none", "null")
+        return str(value).strip().lower() in empty_values
+
+    def _extract_description_value(self, metadata: dict) -> str:
+        """Extract and format description from metadata.
+
+        Checks USER_COMMENT first for screenshot detection,
+        then falls back to DESCRIPTION.
+        """
+        user_comment = metadata.get(IosTags.USER_COMMENT.value)
+        if user_comment:
+            user_comment_str = str(user_comment).strip().lower()
+            if "screenshot" in user_comment_str:
+                return "screenshot"
+
+        description = metadata.get(IosTags.DESCRIPTION.value)
+        if description:
+            return str(description).strip().lower().replace(" ", "_")
+
+        return None
+
+    def _extract_metadata_from_bytes(self,
+                                     source_path: str,
+                                     data: bytes) -> dict:
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=os.path.splitext(source_path)[1],
+        ) as tmp_file:
+            tmp_file.write(data)
+            tmp_file_path = tmp_file.name
+        try:
+            return extract_metadata_fast(tmp_file_path)
+        finally:
+            if os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
+
+    async def _extract_metadata_from_device_file(self,
+                                                 source_path: str) -> dict:
+        tmp_file_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=os.path.splitext(source_path)[1],
+            ) as tmp_file:
+                tmp_file_path = tmp_file.name
+
+            afc = await self.open_afc()
+            await afc.pull(
+                source_path,
+                tmp_file_path,
+                progress_bar=False,
+            )
+            return extract_metadata_fast(tmp_file_path)
+        except Exception as e:
+            print(f"Error extracting full metadata for {source_path}: {e}")
+            return {}
+        finally:
+            if tmp_file_path and os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
+
+    async def _extract_metadata_with_fallback(self,
+                                              source_path: str,
+                                              partial_bytes: int) -> dict:
+        partial_data = await self.get_partial_file(source_path, partial_bytes)
+        if partial_data is None:
+            raise ValueError("No data returned for metadata extraction")
+
+        metadata = self._extract_metadata_from_bytes(source_path, partial_data)
+        del partial_data
+
+        if self._has_embedded_date(metadata) and self._has_contextual_metadata(
+            metadata
+        ):
+            return metadata
+
+        full_metadata = await self._extract_metadata_from_device_file(
+            source_path,
+        )
+        if full_metadata:
+            return full_metadata
+        return metadata
+
     async def get_exif_from_image(self, source_path, order=1) -> tuple:
         """
         Extract relevant EXIF tags as DirectoryOrder objects.
@@ -146,20 +251,10 @@ class IphoneDevice(Device):
         Values: DirectoryOrder(order, value)
         """
         try:
-            data = await self.get_partial_file(source_path, 512 * 1024)
-            if data is None:
-                raise ValueError(
-                    "No data returned for image metadata extraction"
-                )
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=os.path.splitext(source_path)[1],
-            ) as tmp_file:
-                tmp_file.write(data)
-                del data  # Free memory immediately after use
-                tmp_file_path = tmp_file.name
-            metadata = extract_metadata_fast(tmp_file_path)
-            os.unlink(tmp_file_path)
+            metadata = await self._extract_metadata_with_fallback(
+                source_path,
+                512 * 1024,
+            )
             gc.collect()  # Force garbage collection to free memory
 
             extracted_data = {}
@@ -197,15 +292,19 @@ class IphoneDevice(Device):
                     directory=desc_value
                 )
 
-            if IosTags.DESCRIPTION.value in metadata:
-                desc_value = str(
-                    metadata[IosTags.DESCRIPTION.value]
-                ).strip().lower().replace(" ", "_")
+            if (
+                IosTags.DESCRIPTION.value in metadata
+                or IosTags.USER_COMMENT.value in metadata
+            ):
+                desc_value = self._extract_description_value(metadata)
+                if not self._is_empty_value(desc_value):
+                    print(f"Description found for {source_path}: "
+                          f"{desc_value}")
+                    extracted_data["description"] = DirectoryOrder(
+                        order=order+3,
+                        directory=desc_value
+                    )
 
-                extracted_data["description"] = DirectoryOrder(
-                    order=order+3,
-                    directory=desc_value
-                )
             lens_model = metadata.get(IosTags.LENS_MODEL.value)
             if lens_model and "front" in str(lens_model).lower():
                 extracted_data["camera"] = DirectoryOrder(
@@ -221,21 +320,10 @@ class IphoneDevice(Device):
 
     async def get_exif_from_video(self, source_path, order=1) -> dict:
         try:
-            # raise Error("testing")  # Placeholder until implemented
-            data = await self.get_partial_file(source_path, 1024 * 1024)
-            if data is None:
-                raise ValueError(
-                    "No data returned for video metadata extraction"
-                )
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=os.path.splitext(source_path)[1],
-            ) as tmp_file:
-                tmp_file.write(data)
-                tmp_file_path = tmp_file.name
-                del data  # Free memory immediately after use
-            metadata = extract_metadata_fast(tmp_file_path)
-            os.unlink(tmp_file_path)
+            metadata = await self._extract_metadata_with_fallback(
+                source_path,
+                2 * 1024 * 1024,
+            )
             gc.collect()  # Force garbage collection to free memory
 
             extracted_data = {}

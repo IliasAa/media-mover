@@ -30,7 +30,6 @@ class ExportController:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                self.sem = asyncio.Semaphore(1)
                 loop.run_until_complete(coro_func(*args))
             finally:
                 loop.close()

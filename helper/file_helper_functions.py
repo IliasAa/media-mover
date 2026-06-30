@@ -21,7 +21,8 @@ video_extensions = ('.mp4',
                     '.flv',
                     '.wmv',
                     '.mov',
-                    '.mp4')
+                    '.mp4',
+                    '.hevc')
 
 
 # Function to check if a file is a media file based on its extension
@@ -176,6 +177,7 @@ TAGS_NEEDED = [
     "-Model",
     "-LensModel",
     "-Description",
+    "-UserComment",
     "-Author",
     "-DateTimeOriginal",
     "-CreateDate",
