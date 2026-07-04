@@ -15,15 +15,6 @@ class ExportController:
         # Register the ExportScreen as an observer to the FileTransferManager
         self.subject.attach(self.my_frame)
 
-    def start_progress_safe(self):
-        self._run_in_thread(self.start_progress)
-
-    def check_for_connected_devices_safe(self):
-        self._run_in_thread(self.check_for_connected_devices)
-
-    def save_progress_safe(self):
-        self._run_in_thread(self.save_progress)
-
     def _run_in_thread(self, coro_func, *args):
         """Run an async method in an isolated background thread."""
         def thread_target():
@@ -36,12 +27,6 @@ class ExportController:
 
         threading.Thread(target=thread_target, daemon=True).start()
 
-    def _handle_async_exception(self, future):
-        try:
-            future.result()
-        except Exception as e:
-            print(f"Async task error: {e}")
-
     def show_export_screen(self, master):
         '''Display the export screen on the main application window'''
         self.my_frame = ExportScreen(master=master, controller=self)
@@ -51,6 +36,15 @@ class ExportController:
                            rowspan=2,
                            sticky="nsew",
                            padx=10, pady=10)
+
+    def start_progress_safe(self):
+        self._run_in_thread(self.start_progress)
+
+    def check_for_connected_devices_safe(self):
+        self._run_in_thread(self.check_for_connected_devices)
+
+    def save_progress_safe(self):
+        self._run_in_thread(self.save_progress)    
 
     async def check_for_connected_devices(self):
         '''Check for connected devices and update the export screen
