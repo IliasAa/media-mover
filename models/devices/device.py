@@ -58,14 +58,20 @@ class Device(ABC):
 
     # Do not know if other devices use same metadata retrieval methods
     # iPhones, can move to IphoneDevice if needed.
-    @abstractmethod
     async def get_exif_from_image(self, data: bytes, order: int = 1) -> dict:
         """
         Get the EXIF data from an image file on the device.
         """
 
-    @abstractmethod
     async def get_exif_from_video(self, data: bytes, order: int = 1) -> dict:
         """
         Get the metadata from a video file on the device.
+        """
+
+    @abstractmethod
+    async def get_exif_from_media_file(
+        self, source_path, directory_order_config
+    ) -> dict:
+        """
+        Get the metadata from a media file on the device.
         """

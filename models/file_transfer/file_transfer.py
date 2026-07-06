@@ -1,10 +1,9 @@
-from ast import List
+from typing import List
 import gc
-from io import BytesIO
 import os
 import shutil
 
-from models.dataclass.data_class import FileInfo
+from models.dataclass.data_class import Directory, DirectoryOrder, DirectoryOrderConfig, FileInfo
 from models.devices import Device
 from helper.file_helper_functions import (
     is_media_file,
@@ -13,16 +12,45 @@ from helper.file_helper_functions import (
     calculate_hash,
 )
 import concurrent.futures
-from models.file_path import FilePathConstructor, DirectoryOrder
+from models.devices.iPhone.metadata_extractor import IosTags
+from models.file_path_constructor import FilePathConstructor
 from screens.observer import Observer
 from models.subject import Subject
 
-order = [
+directory_order = [
     DirectoryOrder(
-        directory="device", order=1),
+        directory=Directory.FOREIGN.value, order=3, exif_tags={
+            IosTags.DESCRIPTION.value: ["Cj"]
+        }
+    ),
     DirectoryOrder(
-        directory="exif_data", order=2),
+        directory=Directory.SELFIE.value, order=3, exif_tags={
+            IosTags.LENS_MODEL.value: ["front"]
+        }
+    ),
+    DirectoryOrder(
+        directory=Directory.SCREENSHOT.value, order=3, exif_tags={
+            IosTags.DESCRIPTION.value: ["screenshot"],
+            IosTags.USER_COMMENT.value: ["screenshot"]
+        }
+    ),
+    DirectoryOrder(
+        directory=Directory.SCREEN_RECORDING.value, order=3, exif_tags={
+            IosTags.AUTHOR.value: ["ReplayKitRecording"]
+        }
+    )
 ]
+
+directories_neglected = [
+    Directory.SCREEN_RECORDING.value,
+    Directory.SCREENSHOT.value,
+]
+
+directory_order_config = DirectoryOrderConfig(
+    with_date_folders=True,
+    with_device_folders=False,
+    directories_orders=directory_order,
+    directories_neglected=directories_neglected,)
 
 
 class FileTransferManager(Subject):
@@ -103,7 +131,7 @@ class FileTransferManager(Subject):
         try:
             self.path_constructor = FilePathConstructor(
                 device_id=device.get_device_id(),
-                order_of_directories=order
+                directory_config=directory_order_config
             )
             count = 0
             self.amount_of_files_collected += len(device.registered_paths)
@@ -205,36 +233,45 @@ class FileTransferManager(Subject):
             print("No destination directory set. Skipping file copy.")
             return
 
-        for file_path, info in self.collected_files.items():
-            constructed_path = (
-                self.to_directory + "/" + info.constructed_path
-            )
-            self.progress += 1
-            if not os.path.exists(constructed_path):
-                os.makedirs(constructed_path)
+        print(f"Amount of files: {len(self.collected_files.items())}")
 
-            device = info.device
-
-            try:
-                file_name = info.filename
-                new_file_path = os.path.join(
-                    constructed_path, file_name
+        try:
+            for file_path, info in self.collected_files.items():
+                print(f"Copying {info.filename} to {self.to_directory}")
+                constructed_path = (
+                    self.to_directory + "/" + info.constructed_path
                 )
-                if device is not None:
-                    try:
-                        file_bytes = (
-                            await device.get_file_content(
-                                info.source_path
-                            )
-                        )
-                        file_bytes = BytesIO(file_bytes)
-                        with open(new_file_path, "wb") as destination_file:
-                            destination_file.write(file_bytes.read())
-                    except RuntimeError as re:
-                        print(f"Event loop error for {file_name}: {re}")
-                        continue
-                else:
-                    shutil.copy2(file_path, new_file_path)
-                # print(f"Copied {file_name} to {constructed_path}")
-            except Exception as e:
-                print(f"Error copying {file_name}: {e}")
+                if any(neglected_dir in constructed_path for neglected_dir in directories_neglected):
+                    continue
+
+                self.progress += 1
+                if not os.path.exists(constructed_path):
+                    os.makedirs(constructed_path)
+
+                device = info.device
+
+                try:
+                    file_name = info.filename
+                    new_file_path = os.path.join(
+                        constructed_path, file_name
+                    )
+                    if device is not None:
+                        try:
+                            await device.copy_file_to_path(
+                                info.source_path, new_file_path)
+
+                        except RuntimeError as re:
+                            print(f"Event loop error for {file_name}: {re}")
+                            continue
+                    else:
+                        shutil.copy2(info.source_path, new_file_path)
+                    # print(f"Copied {file_name} to {constructed_path}")
+                except Exception as e:
+                    print(f"Error copying {file_name}: {e}")
+        finally:
+            # Clean up AFC connections after export
+            for file_path, info in self.collected_files.items():
+                if info.device is not None and hasattr(info.device, 'cleanup_afc_cache'):
+                    info.device.cleanup_afc_cache()
+            
+            print(f"Finished copying files to {self.to_directory}")

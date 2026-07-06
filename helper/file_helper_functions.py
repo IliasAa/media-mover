@@ -131,8 +131,6 @@ def tree_generator_text(collected_files: dict[str, 'FileInfo'], to_directory: st
     tree_text += f"📂{to_directory}\n"
     dict_tree = defaultdict(list)
 
-    print(f"Generating tree for {len(collected_files)} files.")
-
     # Build nested dict structure
     for source_path, file_info in collected_files.items():
         constructed_path = file_info.constructed_path or "unknown_path"

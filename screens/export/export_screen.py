@@ -34,7 +34,7 @@ class ExportScreen(ctk.CTkFrame, Observer):
         self.collected_files = subject.collected_files
         self.to_directory = subject.to_directory
         self.progress = subject.progress
-        print("Export screen received update: "f"progress={subject.progress}")
+
         total_items = (subject.amount_of_photos_collected +
                        subject.amount_of_videos_collected)
         if (total_items > 0):
@@ -46,7 +46,7 @@ class ExportScreen(ctk.CTkFrame, Observer):
         # Title on the first row of the grid
         self.export_title = ctk.CTkLabel(
             self,
-            text="Export media files",
+            text="Export Media Files",
             font=("Roboto", 24)
         )
         self.export_title.grid(

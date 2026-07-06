@@ -1,55 +1,46 @@
 from pathlib import Path
-from helper.file_helper_functions import is_image_file, is_video_file
-from models.dataclass.data_class import DirectoryOrder
+from models.dataclass.data_class import DirectoryOrderConfig
 from models.devices import Device
 
 
 class FilePathConstructor:
     def __init__(self, device_id: str,
-                 order_of_directories: list[DirectoryOrder]):
+                 directory_config: DirectoryOrderConfig):
+
         self.device_id = device_id
-        self.order_of_directories = order_of_directories
+        self.directory_config = directory_config
 
-    async def resolve_directory(self, dir_key: str, file_info, device: Device):
-        if dir_key == "device":
-            return device.get_device_name().replace(
-                " ", "_").lower() or "unknown_device"
-        if dir_key == "exif_data":
-            sorted_dirs = await self.add_relevant_exif_data(
-                file_info.source_path, device)
-            # Combine into a single path string or multiple directories
-            return "/".join(d.directory for d in sorted_dirs)
+    async def resolve_directory(self,
+                                file_info,
+                                device: Device):
+        device_name = ""
+        # This one handles the case where no directories are specified,
+        # but device folders are enabled
+        if (self.directory_config.with_device_folders):
+            device_name = (device.get_device_name().replace(
+                " ", "_").lower() or "unknown_device") + "/"
 
-        return dir_key
+        sorted_dirs = await self.add_relevant_exif_data(
+            file_info.source_path, device)
 
-    async def construct_destination_path(self, file_info, device: Device) -> str:
-        self.dirs_in_order = []
+        return device_name + "/".join(
+            d.directory for d in sorted_dirs.values())
 
-        for d in self.order_of_directories:
-            dir_name = await self.resolve_directory(d.directory, file_info, device)
-            self.dirs_in_order.append((d.order, dir_name))
-        # Sort by order
-        self.dirs_in_order.sort(key=lambda x: x[0])
+    async def construct_destination_path(self,
+                                         file_info, device: Device) -> str:
 
-        # Extract directory names only
-        ordered_dirs = [d for _, d in self.dirs_in_order]
+        dir_name = await self.resolve_directory(file_info, device)
 
         # Build path safely
-        destination_path = Path(*ordered_dirs)
+        destination_path = Path(dir_name)
 
         return str(destination_path)
 
     async def add_relevant_exif_data(self, source_path,  device: Device):
         if device is not None:
-            if is_image_file(source_path):
-                exif_dirs = await device.get_exif_from_image(source_path,
-                                                             order=1)
-                # Sort by order dynamically
-                return sorted(exif_dirs.values(), key=lambda x: x.order)
-
-            elif is_video_file(source_path):
-                exif_dirs = await device.get_exif_from_video(source_path,
-                                                             order=1)
-                return sorted(exif_dirs.values(), key=lambda x: x.order)
+            return await device.get_exif_from_media_file(
+                source_path,
+                self.directory_config
+            )
 
         return None
