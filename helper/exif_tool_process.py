@@ -1,6 +1,8 @@
 import subprocess
 import threading
 import json
+from PyInstaller.compat import is_win
+from enum import Enum
 
 TAGS_NEEDED = [
     "-Model",
@@ -15,15 +17,22 @@ TAGS_NEEDED = [
     "-FileAccessDate",
 ]
 
+class ExifToolSystemPath(Enum):
+    DARWIN = "exiftool"
+    WINDOWS = r"exiftool-13.59_64\exiftool-13.59_64\exiftool.exe.exe"
+
 
 class ExifToolProcess:
     """Stay-open exiftool singleton. One process shared across all files."""
     _instance = None
     _class_lock = threading.Lock()
+    _disabled = False
+    _missing_notice_logged = False
 
     def __init__(self):
+        exif_tool = ExifToolSystemPath.WINDOWS.value if is_win else ExifToolSystemPath.DARWIN.value
         self._proc = subprocess.Popen(
-            ["exiftool", "-stay_open", "True", "-@", "-"],
+            [exif_tool, "-stay_open", "True", "-@", "-"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
@@ -71,4 +80,14 @@ class ExifToolProcess:
 
 def extract_metadata_fast(file_path: str) -> dict:
     """Extract EXIF metadata using the shared stay-open exiftool process."""
-    return ExifToolProcess.get().extract(file_path)
+    if ExifToolProcess._disabled:
+        return {}
+
+    try:
+        return ExifToolProcess.get().extract(file_path)
+    except FileNotFoundError as e:
+        ExifToolProcess._disabled = True
+        if not ExifToolProcess._missing_notice_logged:
+            print(e)
+            ExifToolProcess._missing_notice_logged = True
+        return {}

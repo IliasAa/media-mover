@@ -12,5 +12,6 @@ dependencies = [
     "pillow>=12.0.0",
     "pillow-heif>=1.1.1",
     "pyexiftool>=0.5.6",
+    "pyinstaller>=6.21.0",
     "pymobiledevice3>=8.2.4",
 ]
