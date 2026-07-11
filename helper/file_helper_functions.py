@@ -9,7 +9,7 @@ from PIL.ExifTags import TAGS
 
 from models.dataclass.data_class import FileInfo
 
-image_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.heic', '.jpg')
+image_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.heic', '.heif', '.webp', '.svg', '.ico', '.tiff', '.tif', '.raw', '.psd', '.ai', '.eps')
 video_extensions = ('.mp4',
                     '.avi',
                     '.mov',
@@ -18,7 +18,15 @@ video_extensions = ('.mp4',
                     '.wmv',
                     '.mov',
                     '.mp4',
-                    '.hevc')
+                    '.hevc',
+                    '.avi',
+                    '.webm',
+                    '.flv',
+                    '.mkv',
+                    '.3gp', '.3gp2', '.3g2', '.3gpp', '.3gpp2',
+                    '.ogv', '.ogx',
+                    '.wmv', '.asf'
+                    )
 
 
 # Function to check if a file is a media file based on its extension
