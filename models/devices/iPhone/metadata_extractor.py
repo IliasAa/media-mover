@@ -82,6 +82,17 @@ class MetaDataExtractor:
 
         return None
 
+    def get_partial_file_from_local(self, source_path: str, partial_bytes: int) -> bytes:
+        """Extract partial file data from local file system."""
+        try:
+            with open(source_path, 'rb') as f:
+                return f.read(partial_bytes)
+        except Exception as e:
+            print(f"Error reading partial file from local: {e}")
+            return None
+    def extract_metadata_from_local(self, source_path: str) -> dict:
+        return extract_metadata_fast(source_path)
+
     def _extract_metadata_from_bytes(self,
                                      source_path: str,
                                      data: bytes) -> dict:
@@ -100,8 +111,12 @@ class MetaDataExtractor:
     async def _extract_metadata_with_fallback(self,
                                               source_path: str,
                                               partial_bytes: int) -> dict:
-        partial_data = await self.device.get_partial_file(source_path,
+        if self.device is None:
+            partial_data = self.get_partial_file_from_local(source_path, partial_bytes)
+        else:
+            partial_data = await self.device.get_partial_file(source_path,
                                                           partial_bytes)
+
         if partial_data is None:
             raise ValueError("No data returned for metadata extraction")
 
@@ -113,9 +128,13 @@ class MetaDataExtractor:
         ):
             return metadata
 
-        full_metadata = await self.device._extract_metadata_from_device_file(
-            source_path,
-        )
+        if self.device is None:
+            full_metadata = self.extract_metadata_from_local(source_path)
+        else:
+            full_metadata = await self.device._extract_metadata_from_device_file(
+                source_path,
+            )
+    
         if full_metadata:
             return full_metadata
         return metadata

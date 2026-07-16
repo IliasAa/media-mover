@@ -15,6 +15,7 @@ from models.dataclass.data_class import DirectoryOrderConfig
 from models.devices import Device
 from models.devices.device_type import DeviceType
 from models.devices.iPhone.metadata_extractor import MetaDataExtractor
+from models.source_scanner.source_scanner import SourceScanner
 
 MEDIA_FOLDER = "/DCIM"
 
@@ -183,3 +184,16 @@ class IphoneDevice(Device):
     def cleanup_afc_cache(self):
         """Close the cached AFC connection after export is complete."""
         self._afc_cache = None
+
+    async def calculate_hash(self, file_path: str) -> str:
+        """Calculate the hash of a file on the device without downloading it."""
+        afc = self._afc_cache or await self.open_afc()
+        try:
+            # Use a temporary file to calculate hash
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                tmp_file_path = tmp_file.name
+            await afc.pull(file_path, tmp_file_path, progress_bar=False)
+            return SourceScanner.calculate_hash(tmp_file_path)
+        finally:
+            if os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)

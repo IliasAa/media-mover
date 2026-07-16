@@ -109,17 +109,6 @@ def get_video_date(file_path):
     except Exception:
         return find_date_in_text(file_path)
 
-
-# Function to calculate unique hash for a file used for deduplication
-def calculate_hash(file_path):
-    """Calculate the hash of a file."""
-    hash_md5 = hashlib.md5()
-    with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
-
-
 def calculate_hash_for_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 

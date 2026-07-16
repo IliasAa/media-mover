@@ -56,6 +56,12 @@ class Device(ABC):
         Get the type of the device.
         """
 
+    @abstractmethod
+    async def calculate_hash(self, file_path: str) -> str:
+        """
+        Calculate the hash of a file on the device.
+        """
+
     # Do not know if other devices use same metadata retrieval methods
     # iPhones, can move to IphoneDevice if needed.
     async def get_exif_from_image(self, data: bytes, order: int = 1) -> dict:

@@ -2,6 +2,7 @@ import asyncio
 import threading
 
 from models.devices import DeviceDetector
+from models.source_scanner.source_scanner import SourceScanner
 from screens.export.export_screen import ExportScreen
 from models.file_transfer.file_transfer import FileTransferManager
 
@@ -10,6 +11,7 @@ class ExportController:
     def __init__(self, master, fileTransferManager: FileTransferManager):
         self.subject = fileTransferManager
         self.detector = DeviceDetector()
+        self.scanner = SourceScanner(source_path="")
         self.devices = []
         self.show_export_screen(master)
         # Register the ExportScreen as an observer to the FileTransferManager
@@ -73,6 +75,20 @@ class ExportController:
 
     def clear_progress(self):
         self.subject.clear_progress()
+        
+    def scan_progress_safe(self):
+        '''Scan the source directory for media files and update the export screen'''
+        def thread_target():
+            self.scanner.source_path = self.subject.to_directory
+            self.scanner.scan()
+            self.subject.hash_set = self.scanner.files
+            print(f"Scanned {len(self.subject.hash_set)} files in the source directory.")
+        
+        threading.Thread(target=thread_target, daemon=True).start()
+
+    def scan_progress(self):
+        '''Scan the source directory for media files and update the export screen'''
+        self.scan_progress_safe()
 
     async def save_progress(self):
         await self.subject.create_and_copy_to_folder()
@@ -84,6 +100,8 @@ class ExportController:
     def set_to_directory(self, to_directory):
         '''Set the destination directory for file transfer'''
         self.subject.to_directory = to_directory
+        self.scanner.source_path = to_directory
+        self.subject.hash_set = self.scanner.get_hash_file()
 
     def toggle_blurry(self):
         self.subject.filter_blurry = not self.subject.filter_blurry

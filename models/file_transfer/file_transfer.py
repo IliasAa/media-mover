@@ -1,3 +1,4 @@
+import asyncio
 from typing import List
 import gc
 import os
@@ -9,11 +10,11 @@ from helper.file_helper_functions import (
     is_media_file,
     is_image_file,
     is_video_file,
-    calculate_hash,
 )
 import concurrent.futures
 from models.devices.iPhone.metadata_extractor import IosTags
 from models.file_path_constructor import FilePathConstructor
+from models.source_scanner.source_scanner import SourceScanner
 from screens.observer import Observer
 from models.subject import Subject
 
@@ -62,7 +63,7 @@ class FileTransferManager(Subject):
     amount_of_photos_collected: int = 0
     amount_of_videos_collected: int = 0
     amount_of_duplicates: int = 0
-    hash_set_photos: set = set()
+    hash_set: set = set()
     no_date_files: list = []
     items: list = []
     heic_files: dict = {}
@@ -88,7 +89,6 @@ class FileTransferManager(Subject):
     """
     The subscription management methods.
     """
-
     def notify(self) -> None:
         """
         Trigger an update in each subscriber.
@@ -103,7 +103,7 @@ class FileTransferManager(Subject):
         self.amount_of_photos_collected = 0
         self.amount_of_videos_collected = 0
         self.amount_of_duplicates = 0
-        self.hash_set_photos = set()
+        self.hash_set = set()
         self.no_date_files = []
         self.items = []
         self.heic_files = {}
@@ -124,8 +124,8 @@ class FileTransferManager(Subject):
         ):
             for device in devices:
                 await self.collect_all_media_from_device(device)
-            self.collect_all_media_from_directory()
-            # self.notify()
+            await self.collect_all_media_from_directory()
+            print(f"Collected {len(self.collected_files)} files from source directory and devices.")
 
     async def collect_all_media_from_device(self, device: Device):
         try:
@@ -133,100 +133,81 @@ class FileTransferManager(Subject):
                 device_id=device.get_device_id(),
                 directory_config=directory_order_config
             )
-            count = 0
             self.amount_of_files_collected += len(device.registered_paths)
             for path in device.registered_paths:
-                await self.process_file_from_device(device, path)
-                if count % 20 == 0:
-                    self.notify()
-                    gc.collect()
-                count += 1
-            self.notify()
+                await self.process_file(os.path.dirname(path), os.path.basename(path), device)
+                self.notify()
+                gc.collect()
 
         except Exception as e:
             print(f"Error collecting media from device "
                   f"{device.get_device_name()}: {e}")
 
-    def collect_all_media_from_directory(self):
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+    async def collect_all_media_from_directory(self):
+        self.path_constructor = FilePathConstructor(
+            device_id=None,
+            directory_config=directory_order_config
+        )
+
+        self.amount_of_files_collected = sum(
+            1
+            for root_dir, _, files in os.walk(self.from_directory)
+            for filename in files
+            if is_media_file(os.path.join(root_dir, filename))
+        )
+        count = 0
+        with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
-            for root_dir, __, files in os.walk(self.from_directory):
+            for root_dir, _, files in os.walk(self.from_directory):
                 for filename in files:
-                    futures.append(
-                        executor.submit(self.process_file, root_dir, filename))
-            concurrent.futures.wait(futures)
+                    future = executor.submit(asyncio.run, self.process_file(root_dir, filename, None))
+                    futures.append(future)
+            for future in concurrent.futures.as_completed(futures):
+                future.result()
+                count += 1
+                print(f"Processed {count} files from directory: {self.from_directory}")
+                if count % 100 == 0:
+                    self.notify()
+        self.notify()
 
-    async def process_file_from_device(self, device: Device, path: str):
-        if is_media_file(path):
-            if path not in self.collected_files:
-                if is_image_file(path):
-                    self.amount_of_photos_collected += 1
-                    file_info = FileInfo(
-                        source_path=path,
-                        filename=os.path.basename(path),
-                        year=None,
-                        device=device
-                    )
-                    file_info.constructed_path = (
-                        await self.path_constructor
-                        .construct_destination_path(
-                            file_info,
-                            device
-                        )
-                    )
-                    self.collected_files[path] = file_info
-                elif is_video_file(path):
-                    self.amount_of_videos_collected += 1
-                    file_info = FileInfo(
-                        source_path=path,
-                        filename=os.path.basename(path),
-                        year=None,
-                        device=device
-                    )
-                    file_info.constructed_path = (
-                        await self.path_constructor
-                        .construct_destination_path(
-                            file_info, device
-                        )
-                    )
-                    self.collected_files[path] = file_info
 
-    def process_file(self, root, filename, device=None):
+    async def _add_file_info(self, file_path: str, filename: str, device=None):
+        """Helper method to create and store file info."""
+        file_info = FileInfo(
+            source_path=file_path,
+            filename=filename,
+            year=None,
+            device=device
+        )
+        file_info.constructed_path = (
+            await self.path_constructor
+            .construct_destination_path(
+                file_info, device
+            )
+        )
+        self.collected_files[file_path] = file_info
+
+    async def process_file(self, root, filename, device=None):
         if is_media_file(filename):
             file_path = os.path.join(root, filename)
-            file_hash = calculate_hash(file_path)
+            file_path = file_path.replace("\\", "/")
+            self.progress += 1
+            
+            if device:
+                file_hash = await device.calculate_hash(file_path)
+            else:
+                file_hash = SourceScanner.calculate_hash(file_path)
 
-            if file_hash not in self.hash_set_photos:
-                self.hash_set_photos.add(file_hash)
+            if file_hash not in self.hash_set:
+                self.hash_set.add(file_hash)
                 if is_image_file(filename):
                     self.amount_of_photos_collected += 1
-                    # Separate the heic from other file types.
-                    file_info = FileInfo(
-                        source_path=file_path,
-                        filename=filename,
-                        year=None,
-                        device=device
-                    )
-                    self.collected_files[file_path] = file_info
+                    await self._add_file_info(file_path, filename, device)
                 elif is_video_file(filename):
                     self.amount_of_videos_collected += 1
-                    file_info = FileInfo(
-                        source_path=file_path,
-                        filename=filename,
-                        year=None,
-                        device=device
-                    )
-                    self.collected_files[file_path] = file_info
-
+                    await self._add_file_info(file_path, filename, device)
             else:
-                self.amount_of_duplicates += 1
-                file_info = FileInfo(
-                    source_path=file_path,
-                    filename=filename,
-                    year=None,
-                    device=device
-                )
-                self.collected_duplicates[file_path] = file_info
+                print(f"Duplicate file detected: {file_path}")
 
     async def create_and_copy_to_folder(self):
         if self.to_directory == "":
@@ -273,5 +254,7 @@ class FileTransferManager(Subject):
             for file_path, info in self.collected_files.items():
                 if info.device is not None and hasattr(info.device, 'cleanup_afc_cache'):
                     info.device.cleanup_afc_cache()
-            
+                    
+            # Save the hash set to the destination directory
+            SourceScanner.save_hash_file(self.to_directory, self.hash_set)
             print(f"Finished copying files to {self.to_directory}")
