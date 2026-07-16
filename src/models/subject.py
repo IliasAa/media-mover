@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from screens.observer import Observer
+    from src.screens.observer import Observer
 
 
 class Subject(ABC):

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from models.subject import Subject
+    from src.models.subject import Subject
 
 
 class Observer(ABC):

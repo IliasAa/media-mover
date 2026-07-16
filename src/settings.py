@@ -1,5 +1,5 @@
 APP_NAME = 'Media Mover'
-APP_ICON_PATH = 'assets/icon/AppIcon.png'
+APP_ICON_PATH = 'assets/main_icon/AppIcon.png'
 WINDOW_SIZE = '1000x625'
 ROTATE_DEFAULT = 0
 BACKGROUND_COLOR = '#242424'

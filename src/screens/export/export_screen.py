@@ -34,12 +34,10 @@ class ExportScreen(ctk.CTkFrame, Observer):
         self.collected_files = subject.collected_files
         self.to_directory = subject.to_directory
         self.progress = subject.progress
-
-        total_items = (subject.amount_of_photos_collected +
-                       subject.amount_of_videos_collected)
-        if (total_items > 0):
-            self.progressbar.set(subject.progress / total_items)
         self.total_items = subject.amount_of_files_collected
+        print(f"Progress: {self.progress} / Total Items: {self.total_items}")
+        if (self.total_items > 0):
+            self.progressbar.set(subject.progress / self.total_items)
         self.set_files_created()
 
     def export_screen(self) -> None:
@@ -63,7 +61,7 @@ class ExportScreen(ctk.CTkFrame, Observer):
         # Files created menu
         self.set_files_created()
         # Selected options
-        self.set_selected_options()
+        # self.set_selected_options()
         # Progress bar
         self.set_progress()
         # Action buttons
@@ -153,19 +151,19 @@ class ExportScreen(ctk.CTkFrame, Observer):
             pady=20
         )
 
-    def set_selected_options(self):
-        self.selectOptions = SelectOptions(self, self.controller)
-        self.selectOptions.grid(
-            row=5,
-            column=0,
-            sticky='nsew',
-            padx=20,
-            pady=0
-        )
+    # def set_selected_options(self):
+    #     self.selectOptions = SelectOptions(self, self.controller)
+    #     self.selectOptions.grid(
+    #         row=5,
+    #         column=0,
+    #         sticky='nsew',
+    #         padx=20,
+    #         pady=0
+    #     )
 
     def set_progress(self):
         self.progressbar.grid(
-            row=6,
+            row=5,
             column=0,
             sticky='ew',
             padx=20,
@@ -178,11 +176,11 @@ class ExportScreen(ctk.CTkFrame, Observer):
             self,
             start=self.controller.start_progress_safe,
             clear=self.controller.clear_progress,
-            scan=lambda: print("Scan clicked"),
+            scan=self.controller.scan_progress,
             save=self.controller.save_progress_safe
         )
         self.actions_button.grid(
-            row=7,
+            row=6,
             column=0,
             sticky='nsew',
             padx=20,

@@ -1,5 +1,7 @@
 import tkinter
+from PIL import Image
 from tkinter import filedialog
+import helper.path_helper as ph
 import customtkinter as ctk
 
 from helper.file_helper_functions import tree_generator_text
@@ -21,6 +23,7 @@ class SelectFileButtonExport(Panel):
         super().__init__(parent)
         self.selectDirectory = import_func
 
+
         if kwargs.get('scan_devices_func'):
             self.scan_devices_func = kwargs.get('scan_devices_func')
             self.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
@@ -34,7 +37,7 @@ class SelectFileButtonExport(Panel):
                         columnspan=2, padx=(5),
                         pady=(5), sticky="nsew")
 
-        browse_dir_button = ctk.CTkButton(master=self, text=text_button,
+        browse_dir_button = ctk.CTkButton(master=self,
                                           command=lambda:
                                               self.import_directory())
 

@@ -6,6 +6,7 @@ from models.file_transfer.file_transfer import FileTransferManager
 from settings import APP_NAME, APP_ICON_PATH, WINDOW_SIZE
 
 
+
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -16,6 +17,7 @@ class App(ctk.CTk):
 
         icon = PhotoImage(file=APP_ICON_PATH)
         self.iconphoto(False, icon)
+        self.wm_iconbitmap(APP_ICON_PATH)
 
         # Configure the first row to take up all available vertical space with
         # a weight of 1.
