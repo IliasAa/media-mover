@@ -4,7 +4,7 @@ A desktop application for collecting and organizing media from mobile devices an
 
 **Media Mover App** helps you move photos and videos from your phone into a structured folder system based on metadata such as creation date, camera type, and device information.
 
-![media-mover-app](docs\img\media_mover.png)
+![media-mover-app](docs/img/media_mover.png)
 
 The goal is simple:
 
