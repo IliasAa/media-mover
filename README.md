@@ -39,4 +39,4 @@ The application was intentionally designed with **scalability and device abstrac
 
 Although the current implementation supports **iPhone devices and file locations**, the internal architecture is built to make supporting additional device types straightforward.
 
-![uml-media-mover-app](diagrams/uml_media_mover.png)
+![uml-media-mover-app](docs/diagrams/uml_media_mover.png)
