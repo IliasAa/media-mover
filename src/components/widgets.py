@@ -1,63 +1,76 @@
 import tkinter
-from PIL import Image
-from tkinter import filedialog
-import helper.path_helper as ph
-import customtkinter as ctk
+from pathlib import Path
+from tkinter import filedialog, ttk
 
-from helper.file_helper_functions import tree_generator_text
+import customtkinter as ctk
+from PIL import Image
+
+from helper.file_helper_functions import is_media_file
+from helper.path_helper import get_root_path
+from settings import ICON_BUTTON_SIZE, ICON_SIZE
 
 
 class Panel(ctk.CTkFrame):
     def __init__(self, parent):
-        super().__init__(master=parent, fg_color='transparent')
+        super().__init__(master=parent, fg_color="transparent")
 
 
 class SelectFileButtonExport(Panel):
-    def __init__(self,
-                 parent,
-                 import_func,
-                 text_button,
-                 entry_text="Select file",
-                 **kwargs):
+    def __init__(
+        self, parent, import_func, text_button, entry_text="Select file", **kwargs
+    ):
 
         super().__init__(parent)
         self.selectDirectory = import_func
 
+        if kwargs.get("scan_devices_func"):
+            self.scan_devices_func = kwargs.get("scan_devices_func")
 
-        if kwargs.get('scan_devices_func'):
-            self.scan_devices_func = kwargs.get('scan_devices_func')
-            self.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
-        else:
-            self.grid_columnconfigure((0, 1, 2), weight=1, uniform='a')
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure((1, 2), weight=0)
         self.grid_rowconfigure(0, weight=1)
 
         # Second row of the grid with the source directory label and entry
         self.entry = ctk.CTkEntry(master=self, placeholder_text=entry_text)
-        self.entry.grid(row=0, column=0,
-                        columnspan=2, padx=(5),
-                        pady=(5), sticky="nsew")
+        self.entry.grid(
+            row=0, column=0, columnspan=1, padx=(5), pady=(5), sticky="nsew"
+        )
 
-        browse_dir_button = ctk.CTkButton(master=self,
-                                          command=lambda:
-                                              self.import_directory())
+        icon_path = get_root_path() / "assets" / "icon" / "folder-open.png"
+        icon_image = Image.open(icon_path)
+        self.browse_icon = ctk.CTkImage(
+            light_image=icon_image, dark_image=icon_image, size=(20, 20)
+        )
+        browse_dir_button = ctk.CTkButton(
+            master=self,
+            image=self.browse_icon,
+            text="",
+            width=ICON_BUTTON_SIZE,
+            height=ICON_BUTTON_SIZE,
+            command=lambda: self.import_directory(),
+        )
 
-        browse_dir_button.grid(row=0, column=2,
-                               columnspan=1, padx=(5),
-                               pady=(5), sticky="ew")
+        browse_dir_button.grid(
+            row=0, column=1, columnspan=1, padx=(5), pady=(5), sticky=""
+        )
 
-        if kwargs.get('scan_devices_func'):
+        if kwargs.get("scan_devices_func"):
+            icon_path = get_root_path() / "assets" / "icon" / "cellphone.png"
+            self.icon_image = Image.open(icon_path)
             scan_devices_button = ctk.CTkButton(
                 master=self,
-                text="Scan for devices",
-                command=lambda: self.scan_devices_func()
+                text="",
+                width=ICON_BUTTON_SIZE,
+                height=ICON_BUTTON_SIZE,
+                image=ctk.CTkImage(
+                    light_image=self.icon_image,
+                    dark_image=self.icon_image,
+                    size=(ICON_SIZE, ICON_SIZE),
+                ),
+                command=lambda: self.scan_devices_func(),
             )
             scan_devices_button.grid(
-                row=0,
-                column=3,
-                columnspan=1,
-                padx=(5),
-                pady=(5),
-                sticky="ew"
+                row=0, column=2, columnspan=1, padx=(5), pady=(5), sticky=""
             )
 
     def import_directory(self):
@@ -69,37 +82,47 @@ class SelectFileButtonExport(Panel):
 
     def set_entry(self, text):
         self.entry.delete(0, tkinter.END)
-        if (len(text) > 0):
+        if len(text) > 0:
             self.entry.insert(0, text)
 
 
 class ScanForDevices(ctk.CTkFrame):
-    def __init__(self,
-                 parent,
-                 text_button,
-                 scan_callback, **kwargs):
+    def __init__(self, parent, text_button, scan_callback, **kwargs):
         super().__init__(parent)
-        self.grid_columnconfigure((0), weight=1, uniform='a')
+        self.grid_columnconfigure((0), weight=1, uniform="a")
+        self.icon_image = Image.open(
+            get_root_path() / "assets" / "icon" / "cellphone.png"
+        )
         self.scanButton = ctk.CTkButton(
             master=self,
-            text=text_button,
-            command=lambda: scan_callback())
-        self.scanButton.grid(row=0, column=0, columnspan=1, padx=(5), pady=(5),
-                             sticky="ew")
+            image=ctk.CTkImage(
+                light_image=self.icon_image,
+                dark_image=self.icon_image,
+                size=(ICON_SIZE, ICON_SIZE),
+            ),
+            text="",
+            command=lambda: scan_callback(),
+        )
+        self.scanButton.grid(
+            row=0, column=0, columnspan=1, padx=(5), pady=(5), sticky="ew"
+        )
 
 
 class DeviceLabel(ctk.CTkFrame):
     def __init__(self, parent, device_name, delete_callback, **kwargs):
         # Use a colored frame as background
-        super().__init__(parent, corner_radius=5, fg_color='#2FA572',
-                         **kwargs)
+        super().__init__(parent, corner_radius=5, fg_color="#2FA572", **kwargs)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure((0, 1), weight=0)
 
         # Device name label
         self.label = ctk.CTkLabel(
-            self, text=f"💾 {device_name}", text_color="white", anchor="w",
-            fg_color="transparent", font=("Helvetica", 10)
+            self,
+            text=f"💾 {device_name}",
+            text_color="white",
+            anchor="w",
+            fg_color="transparent",
+            font=("Helvetica", 10),
         )
         self.label.grid(row=0, column=0, padx=5, pady=1, sticky="w")
 
@@ -112,7 +135,7 @@ class DeviceLabel(ctk.CTkFrame):
             height=5,
             fg_color="#FF5C5C",
             hover_color="#FF1F1F",
-            command=lambda: delete_callback(device_name)
+            command=lambda: delete_callback(device_name),
         )
         self.delete_button.grid(row=0, column=1, padx=5, pady=0)
 
@@ -133,9 +156,7 @@ class DeviceLabelRow(ctk.CTkFrame):
         devices_names = self.controller.get_all_device_names()
         for i, name in enumerate(devices_names):
             device_label = DeviceLabel(
-                self,
-                name,
-                delete_callback=lambda n=name: print(f"Delete {n}")
+                self, name, delete_callback=lambda n=name: print(f"Delete {n}")
             )
             device_label.grid(row=0, column=i, sticky="w", padx=5, pady=5)
 
@@ -144,83 +165,61 @@ class SelectOptions(Panel):
     def __init__(self, parent, controller, **kwargs):
         super().__init__(parent)
         # Adjusted column weights to balance width
-        self.grid_columnconfigure((0, 1), weight=1, uniform='a')
-        self.grid_rowconfigure((0, 1), weight=1, uniform='a')
+        self.grid_columnconfigure((0, 1), weight=1, uniform="a")
+        self.grid_rowconfigure((0, 1), weight=1, uniform="a")
         self.radio_var = tkinter.IntVar(value=0)
 
         checkbox_1 = ctk.CTkCheckBox(
             master=self,
             text="Filter blurry images",
-            command=lambda: controller.toggle_blurry())
+            command=lambda: controller.toggle_blurry(),
+        )
         checkbox_1.grid(
-            row=0,
-            column=0,
-            padx=(10, 20),
-            pady=(5),
-            sticky="nsew")  # Added space between columns
+            row=0, column=0, padx=(10, 20), pady=(5), sticky="nsew"
+        )  # Added space between columns
 
         checkbox_2 = ctk.CTkCheckBox(
             master=self,
             text="Create date folders",
-            command=lambda: controller.toggle_date_folders())
+            command=lambda: controller.toggle_date_folders(),
+        )
         checkbox_2.grid(
-            row=0,
-            column=1,
-            padx=(20, 10),
-            pady=(5),
-            sticky="nsew")  # Right column aligned to the right
+            row=0, column=1, padx=(20, 10), pady=(5), sticky="nsew"
+        )  # Right column aligned to the right
 
         checkbox_3 = ctk.CTkCheckBox(
             master=self,
             text="Filter lookalikes",
-            command=lambda: controller.toggle_lookalikes())
+            command=lambda: controller.toggle_lookalikes(),
+        )
         checkbox_3.grid(
-            row=1,
-            column=0,
-            padx=(10, 20),
-            pady=(5),
-            sticky="nsew")  # Added space between columns
+            row=1, column=0, padx=(10, 20), pady=(5), sticky="nsew"
+        )  # Added space between columns
 
         checkbox_4 = ctk.CTkCheckBox(
-            master=self,
-            text="Save hashes",
-            command=lambda: controller.toggle_hashes())
+            master=self, text="Save hashes", command=lambda: controller.toggle_hashes()
+        )
         checkbox_4.grid(
-            row=1,
-            column=1,
-            padx=(20, 10),
-            pady=(5),
-            sticky="nsew")  # Right column aligned to the right
+            row=1, column=1, padx=(20, 10), pady=(5), sticky="nsew"
+        )  # Right column aligned to the right
 
 
 class SelectFilesOverview(Panel):
     def __init__(self, parent, **kwargs):
         super().__init__(parent)
 
-        self.grid_columnconfigure((0), weight=1, uniform='a')
+        self.grid_columnconfigure((0), weight=1, uniform="a")
         # Adjusted row weights to balance height
         self.grid_rowconfigure((0, 1), weight=1)
 
-        self.selected_file = ctk.CTkEntry(master=self,
-                                          placeholder_text="Selected file",
-                                          justify="center", height=25)
-        self.selected_file.grid(
-            row=0,
-            column=0,
-            padx=(5),
-            pady=(5),
-            sticky="nsew"
+        self.selected_file = ctk.CTkEntry(
+            master=self, placeholder_text="Selected file", justify="center", height=25
         )
+        self.selected_file.grid(row=0, column=0, padx=(5), pady=(5), sticky="nsew")
         # Set a fixed height for the scrollable frame
         self.scrollable_frame = ctk.CTkScrollableFrame(self, height=200)
-        self.scrollable_frame.grid_columnconfigure((0), weight=1, uniform='a')
-        self.scrollable_frame.grid(
-            row=1,
-            column=0,
-            padx=(5),
-            pady=(5),
-            sticky="nsew"
-        )
+        self.scrollable_frame.grid_columnconfigure((0), weight=1, uniform="a")
+        self.scrollable_frame.grid(row=1, column=0, padx=(5), pady=(5), sticky="nsew")
 
 
 class ActionsButton(Panel):
@@ -233,30 +232,88 @@ class ActionsButton(Panel):
         save = kwargs.get("save")
         scan = kwargs.get("scan")
 
-        self.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform='a')
+        self.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform="a")
         # Adjusted row weights to balance height
         self.grid_rowconfigure((0), weight=1)
-        buttons = [
-            ("Scan", scan),
-            ("Start", start),
-            ("Save", save),
-            ("Clear", clear)
-        ]
+        buttons = [("Scan", scan), ("Start", start), ("Save", save), ("Clear", clear)]
         for i, (text, command) in enumerate(buttons):
             button = ctk.CTkButton(master=self, text=text, command=command)
             button.grid(row=0, column=i, padx=(5), pady=(5), sticky="nsew")
 
 
-class FolderOverview(ctk.CTkTextbox):
+class FolderOverview(ctk.CTkFrame):
     def __init__(self, master, items, to_directory, total_items, **kwargs):
-        super().__init__(master, wrap="none", font=("Courier", 11), **kwargs)
+        super().__init__(master, **kwargs)
 
         self.items = items
         self.to_directory = to_directory
         self.total_items = total_items
 
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
 
-        display_text = tree_generator_text(self.items, self.to_directory, self.total_items)
+        if self.items:
+            summary = (
+                f"[{self.total_items - len(self.items)} left] [{len(self.items)} processed]\n\n"
+                f"📂{self.to_directory}"
+            )
+        else:
+            summary = "No files are processed."
+        self.summary_label = ctk.CTkLabel(
+            self, text=summary, anchor="w", justify="left"
+        )
+        self.summary_label.grid(
+            row=0, column=0, columnspan=2, sticky="ew", padx=5, pady=5
+        )
 
-        self.insert("1.0", display_text)
-        self.configure(state="disabled")  # make it read-only
+        self.treeview = ttk.Treeview(self, show="tree")
+        self.treeview.grid(row=1, column=0, sticky="nsew")
+
+        vertical_scrollbar = ttk.Scrollbar(
+            self, orient="vertical", command=self.treeview.yview
+        )
+        vertical_scrollbar.grid(row=1, column=1, sticky="ns")
+        horizontal_scrollbar = ttk.Scrollbar(
+            self, orient="horizontal", command=self.treeview.xview
+        )
+        horizontal_scrollbar.grid(row=2, column=0, sticky="ew")
+        self.treeview.configure(
+            yscrollcommand=vertical_scrollbar.set,
+            xscrollcommand=horizontal_scrollbar.set,
+        )
+
+        if self.items:
+            root_id = self.treeview.insert(
+                "",
+                "end",
+                text=f"📂{self.to_directory} ({len(self.items)} items)",
+                open=True,
+            )
+            tree_data = {}
+            for file_info in self.items.values():
+                current = tree_data
+                directory_nodes = []
+                path_parts = Path(file_info.constructed_path or "unknown_path").parts
+                for part in path_parts:
+                    if is_media_file(part):
+                        break
+                    node = current.setdefault(part, {"count": 0, "children": {}})
+                    directory_nodes.append(node)
+                    current = node["children"]
+                for node in directory_nodes:
+                    node["count"] += 1
+
+            def add_tree_items(parent_id, children):
+                for name, node in sorted(children.items()):
+                    count = node["count"]
+                    item_label = "item" if count == 1 else "items"
+                    item_id = self.treeview.insert(
+                        parent_id,
+                        "end",
+                        text=f"📂{name} ({count} {item_label})",
+                        open=True,
+                    )
+                    if node["children"]:
+                        add_tree_items(item_id, node["children"])
+
+            add_tree_items(root_id, tree_data)

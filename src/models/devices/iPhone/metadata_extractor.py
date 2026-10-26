@@ -1,8 +1,8 @@
-from datetime import datetime
-from enum import Enum
 import gc
 import os
 import tempfile
+from datetime import datetime
+from enum import Enum
 
 from helper.exif_tool_process import extract_metadata_fast
 from helper.file_helper_functions import find_date_in_text, is_image_file
@@ -24,12 +24,14 @@ class IosTags(Enum):
     USER_COMMENT = "UserComment"
 
 
-DATE_KEYS = [IosTags.DATETIME.value,
-             IosTags.DATETIME_ORIGINAL.value,
-             IosTags.CREATE_DATE.value,
-             IosTags.CREATION_DATE.value,
-             IosTags.FILE_MODIFY_DATE.value,
-             IosTags.FILE_ACCESS_DATE.value]
+DATE_KEYS = [
+    IosTags.DATETIME.value,
+    IosTags.DATETIME_ORIGINAL.value,
+    IosTags.CREATE_DATE.value,
+    IosTags.CREATION_DATE.value,
+    IosTags.FILE_MODIFY_DATE.value,
+    IosTags.FILE_ACCESS_DATE.value,
+]
 
 MAX_IMAGE_BYTES = 512 * 1024
 MAX_VIDEO_BYTES = 2 * 1024 * 1024
@@ -82,20 +84,21 @@ class MetaDataExtractor:
 
         return None
 
-    def get_partial_file_from_local(self, source_path: str, partial_bytes: int) -> bytes:
+    def get_partial_file_from_local(
+        self, source_path: str, partial_bytes: int
+    ) -> bytes:
         """Extract partial file data from local file system."""
         try:
-            with open(source_path, 'rb') as f:
+            with open(source_path, "rb") as f:
                 return f.read(partial_bytes)
         except Exception as e:
             print(f"Error reading partial file from local: {e}")
             return None
+
     def extract_metadata_from_local(self, source_path: str) -> dict:
         return extract_metadata_fast(source_path)
 
-    def _extract_metadata_from_bytes(self,
-                                     source_path: str,
-                                     data: bytes) -> dict:
+    def _extract_metadata_from_bytes(self, source_path: str, data: bytes) -> dict:
         with tempfile.NamedTemporaryFile(
             delete=False,
             suffix=os.path.splitext(source_path)[1],
@@ -108,14 +111,15 @@ class MetaDataExtractor:
             if os.path.exists(tmp_file_path):
                 os.unlink(tmp_file_path)
 
-    async def _extract_metadata_with_fallback(self,
-                                              source_path: str,
-                                              partial_bytes: int) -> dict:
+    async def _extract_metadata_with_fallback(
+        self, source_path: str, partial_bytes: int
+    ) -> dict:
         if self.device is None:
             partial_data = self.get_partial_file_from_local(source_path, partial_bytes)
         else:
-            partial_data = await self.device.get_partial_file(source_path,
-                                                          partial_bytes)
+            partial_data = await self.device.get_partial_file(
+                source_path, partial_bytes
+            )
 
         if partial_data is None:
             raise ValueError("No data returned for metadata extraction")
@@ -134,7 +138,7 @@ class MetaDataExtractor:
             full_metadata = await self.device._extract_metadata_from_device_file(
                 source_path,
             )
-    
+
         if full_metadata:
             return full_metadata
         return metadata
@@ -151,21 +155,21 @@ class MetaDataExtractor:
                     continue
 
                 # If the modified date it is probably foreign
-                if (key == IosTags.FILE_MODIFY_DATE.value or
-                        key == IosTags.FILE_ACCESS_DATE.value):
+                if (
+                    key == IosTags.FILE_MODIFY_DATE.value
+                    or key == IosTags.FILE_ACCESS_DATE.value
+                ):
                     year = f"{year}/probably_foreign"
 
                 extracted_data["year"] = DirectoryOrder(
-                    order=order+1,
-                    directory=str(year)
+                    order=order + 1, directory=str(year)
                 )
                 found_date = True
                 break
 
         if not found_date:
             extracted_data["year"] = DirectoryOrder(
-                order=order+1,
-                directory=f"{datetime.now().year}_no_exif"
+                order=order + 1, directory=f"{datetime.now().year}_no_exif"
             )
 
         return extracted_data
@@ -175,11 +179,11 @@ class MetaDataExtractor:
         extracted_data = {}
 
         if IosTags.MODEL.value in metadata:
-            model_value = str(metadata[IosTags.MODEL.value]).strip(
-                ).lower().replace(" ", "_")
+            model_value = (
+                str(metadata[IosTags.MODEL.value]).strip().lower().replace(" ", "_")
+            )
             extracted_data["model"] = DirectoryOrder(
-                order=order+2,
-                directory=model_value
+                order=order + 2, directory=model_value
             )
 
         return extracted_data
@@ -188,8 +192,8 @@ class MetaDataExtractor:
         pass
 
     async def get_exif_from_media_file(
-            self, source_path,
-            directory_order_config: DirectoryOrderConfig) -> dict:
+        self, source_path, directory_order_config: DirectoryOrderConfig
+    ) -> dict:
         """
         Extract relevant EXIF tags as DirectoryOrder objects.
         Keys: EXIF tag names
@@ -209,17 +213,13 @@ class MetaDataExtractor:
             gc.collect()
             extracted_data = {}
             if directory_order_config.with_date_folders:
-                extracted_data.update(
-                    self._extract_year_metadata(metadata, 1))
+                extracted_data.update(self._extract_year_metadata(metadata, 1))
 
             if directory_order_config.with_device_folders:
-                extracted_data.update(
-                    self._extract_model_metadata(metadata, 2))
+                extracted_data.update(self._extract_model_metadata(metadata, 2))
 
             for directory_order in directory_order_config.directories_orders:
-                for exif_tag, expected_values in (
-                    directory_order.exif_tags.items()
-                ):
+                for exif_tag, expected_values in directory_order.exif_tags.items():
                     if exif_tag in metadata:
                         value = str(metadata[exif_tag]).strip().lower()
                         if any(v.lower() in value for v in expected_values):

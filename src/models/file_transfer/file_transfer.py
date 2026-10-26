@@ -1,22 +1,27 @@
 import asyncio
-from typing import List
+import concurrent.futures
 import gc
 import os
 import shutil
+from typing import List
 
-from models.dataclass.data_class import Directory, DirectoryOrder, DirectoryOrderConfig, FileInfo
-from models.devices import Device
 from helper.file_helper_functions import (
-    is_media_file,
     is_image_file,
+    is_media_file,
     is_video_file,
 )
-import concurrent.futures
+from models.dataclass.data_class import (
+    Directory,
+    DirectoryOrder,
+    DirectoryOrderConfig,
+    FileInfo,
+)
+from models.devices.device import Device
 from models.devices.iPhone.metadata_extractor import IosTags
 from models.file_path_constructor import FilePathConstructor
 from models.source_scanner.source_scanner import SourceScanner
-from screens.observer import Observer
 from models.subject import Subject
+from screens.observer import Observer
 
 directory_order = [
     DirectoryOrder(

@@ -1,10 +1,8 @@
-APP_NAME = 'Media Mover'
-APP_ICON_PATH = 'C:\\Users\\ilias\\Desktop\\Python Scripts\\media-mover\\assets\\main_icon\\AppIcon.png'
-WINDOW_SIZE = '1000x625'
-ROTATE_DEFAULT = 0
-BACKGROUND_COLOR = '#242424'
-DARK_GREY = '#4a4a4a'
-SLIDER_BG = '#64686b'
-FILE_NAME_DEFAULT = 'No file selected'
-FLIP_OPTIONS = ['None', 'X', 'Y', 'Both']
-SCREEN_OPTIONS = ['Export', 'Edit']
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+APP_NAME = "Media Mover"
+APP_ICON_PATH = str(PROJECT_ROOT / "assets" / "main_icon" / "AppIcon.png")
+WINDOW_SIZE = "1000x625"
+ICON_SIZE = 20
+ICON_BUTTON_SIZE = 28

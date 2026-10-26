@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import enum
+from dataclasses import dataclass
 
 from models.devices.device import Device
 

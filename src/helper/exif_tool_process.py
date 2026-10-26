@@ -1,14 +1,24 @@
-import subprocess
-import threading
-import json
-from PyInstaller.compat import is_win
-import sys
-from os.path import dirname as os_path_dirname, abspath as os_path_abspath, join as os_path_join, exists as os_path_exists
-from os import (
-    sep       as os_separator
-)
-from enum import Enum
 import atexit
+import json
+import subprocess
+import sys
+import threading
+from os import sep as os_separator
+from os.path import (
+    abspath as os_path_abspath,
+)
+from os.path import (
+    dirname as os_path_dirname,
+)
+from os.path import (
+    exists as os_path_exists,
+)
+from os.path import (
+    join as os_path_join,
+)
+from shutil import which
+
+from PyInstaller.compat import is_win
 
 TAGS_NEEDED = [
     "-Model",
@@ -22,18 +32,27 @@ TAGS_NEEDED = [
     "-FileModifyDate",
     "-FileAccessDate",
 ]
+
+
 def find_by_relative_path(relative_path: str) -> str:
-    base_path = getattr(sys, '_MEIPASS', os_path_dirname(os_path_dirname(os_path_abspath(__file__))))
+    base_path = getattr(
+        sys, "_MEIPASS", os_path_dirname(os_path_dirname(os_path_abspath(__file__)))
+    )
     return os_path_join(base_path, relative_path)
+
 
 def get_exif_tool_path() -> str:
     if is_win:
-        return find_by_relative_path(f"tools{os_separator}exiftool{os_separator}exiftool.exe")
+        return find_by_relative_path(
+            f"tools{os_separator}exiftool{os_separator}exiftool.exe"
+        )
     else:
-        return "exiftool"
+        return which("exiftool") or "exiftool"
+
 
 class ExifToolProcess:
     """Stay-open exiftool singleton. One process shared across all files."""
+
     _instance = None
     _class_lock = threading.Lock()
     _disabled = False
@@ -43,7 +62,9 @@ class ExifToolProcess:
         exif_tool = get_exif_tool_path()
         print(f"Using ExifTool executable at: {exif_tool}")
         if not os_path_exists(exif_tool):
-            raise FileNotFoundError(f"ExifTool executable not found at {exif_tool}. Please ensure it is installed and accessible.")
+            raise FileNotFoundError(
+                f"ExifTool executable not found at {exif_tool}. Please ensure it is installed and accessible."
+            )
         self._proc = subprocess.Popen(
             [exif_tool, "-stay_open", "True", "-@", "-"],
             stdin=subprocess.PIPE,
@@ -60,10 +81,7 @@ class ExifToolProcess:
         return cls._instance
 
     def extract(self, file_path: str) -> dict:
-        cmd = (
-            "\n".join(TAGS_NEEDED)
-            + f"\n-j\n{file_path}\n-execute\n"
-        )
+        cmd = "\n".join(TAGS_NEEDED) + f"\n-j\n{file_path}\n-execute\n"
         with self._lock:
             self._proc.stdin.write(cmd.encode())
             self._proc.stdin.flush()
@@ -105,8 +123,6 @@ def extract_metadata_fast(file_path: str) -> dict:
             ExifToolProcess._missing_notice_logged = True
         return {}
 
+
 # close the process when the program exits
-atexit.register(lambda: (
-    ExifToolProcess._instance and
-    ExifToolProcess._instance.close()
-))
+atexit.register(lambda: ExifToolProcess._instance and ExifToolProcess._instance.close())

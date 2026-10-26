@@ -1,6 +1,7 @@
-from models.devices import Device
-from .device_creator import DeviceCreator
+from models.devices.device import Device
 from models.devices.iPhone.iphone import IphoneDevice
+
+from .device_creator import DeviceCreator
 
 
 class IphoneCreator(DeviceCreator):

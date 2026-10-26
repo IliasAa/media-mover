@@ -9,24 +9,48 @@ from PIL.ExifTags import TAGS
 
 from models.dataclass.data_class import FileInfo
 
-image_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.heic', '.heif', '.webp', '.svg', '.ico', '.tiff', '.tif', '.raw', '.psd', '.ai', '.eps')
-video_extensions = ('.mp4',
-                    '.avi',
-                    '.mov',
-                    '.mkv',
-                    '.flv',
-                    '.wmv',
-                    '.mov',
-                    '.mp4',
-                    '.hevc',
-                    '.avi',
-                    '.webm',
-                    '.flv',
-                    '.mkv',
-                    '.3gp', '.3gp2', '.3g2', '.3gpp', '.3gpp2',
-                    '.ogv', '.ogx',
-                    '.wmv', '.asf'
-                    )
+image_extensions = (
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".bmp",
+    ".gif",
+    ".heic",
+    ".heif",
+    ".webp",
+    ".svg",
+    ".ico",
+    ".tiff",
+    ".tif",
+    ".raw",
+    ".psd",
+    ".ai",
+    ".eps",
+)
+video_extensions = (
+    ".mp4",
+    ".avi",
+    ".mov",
+    ".mkv",
+    ".flv",
+    ".wmv",
+    ".mov",
+    ".mp4",
+    ".hevc",
+    ".avi",
+    ".webm",
+    ".flv",
+    ".mkv",
+    ".3gp",
+    ".3gp2",
+    ".3g2",
+    ".3gpp",
+    ".3gpp2",
+    ".ogv",
+    ".ogx",
+    ".wmv",
+    ".asf",
+)
 
 
 # Function to check if a file is a media file based on its extension
@@ -43,8 +67,7 @@ def is_video_file(filename):
 
 
 def is_HEIC_file(filename):
-    return filename.lower().endswith('.heic') or filename.lower().endswith(
-        '.heif')
+    return filename.lower().endswith(".heic") or filename.lower().endswith(".heif")
 
 
 def get_file_extension(filename):
@@ -57,15 +80,16 @@ def get_parent_directory(file_path):
 
 def convert_to_JPG(filename):
     base, ext = os.path.splitext(filename)
-    return base + '.jpg' if ext.lower() == '.heic' or \
-        ext.lower() == '.heif' else filename
+    return (
+        base + ".jpg" if ext.lower() == ".heic" or ext.lower() == ".heif" else filename
+    )
 
 
 # Desperate move to find the date in the file path if not found in metadata
 def find_date_in_text(file_path):
-    date_regex = r'\b\d{4}'
+    date_regex = r"\b\d{4}"
     dates = re.findall(date_regex, file_path)
-    if (len(dates) > 0):
+    if len(dates) > 0:
         found_date = dates[0]
         if found_date.startswith("20") or found_date.startswith("19"):
             return int(dates[0])
@@ -82,7 +106,7 @@ def get_image_date(file_path):
             for tag, value in exif_data.items():
                 tag_name = TAGS.get(tag, tag)
                 # print(f"EXIF Tag: {tag_name}, Value: {value}")
-                if tag_name == 'DateTime' or tag_name == 'DateTimeOriginal':
+                if tag_name == "DateTime" or tag_name == "DateTimeOriginal":
                     return find_date_in_text(value)
             print("")
         else:
@@ -109,11 +133,14 @@ def get_video_date(file_path):
     except Exception:
         return find_date_in_text(file_path)
 
+
 def calculate_hash_for_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def tree_generator_text(collected_files: dict[str, 'FileInfo'], to_directory: str, total_items: int) -> str:
+def tree_generator_text(
+    collected_files: dict[str, "FileInfo"], to_directory: str, total_items: int
+) -> str:
     """
     Generate a text-based tree for collected files.
 

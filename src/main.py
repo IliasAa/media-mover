@@ -1,10 +1,11 @@
 from tkinter import PhotoImage
-import customtkinter as ctk
-from controllers.export_controller import ExportController
-from components.menu import OptionsMenu
-from models.file_transfer.file_transfer import FileTransferManager
-from settings import APP_NAME, APP_ICON_PATH, WINDOW_SIZE
 
+import customtkinter as ctk
+
+from components.menu import OptionsMenu
+from controllers.export_controller import ExportController
+from models.file_transfer.file_transfer import FileTransferManager
+from settings import APP_ICON_PATH, APP_NAME, WINDOW_SIZE
 
 
 class App(ctk.CTk):

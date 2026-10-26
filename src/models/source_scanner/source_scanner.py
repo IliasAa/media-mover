@@ -1,11 +1,11 @@
 import hashlib
 import os
 import pickle
-from helper.file_helper_functions import (
-    is_media_file
-)
+
+from helper.file_helper_functions import is_media_file
 
 FILE_HASH_FILE = "progress.pkl"
+
 
 class SourceScanner:
     def __init__(self, source_path):
@@ -22,7 +22,7 @@ class SourceScanner:
                     full_path = os.path.join(root, file)
                     identity = self.calculate_hash(full_path)
                     self.files.add(identity)
-        
+
         self.save_hash_file(self.source_path, self.files)
 
     @staticmethod
@@ -39,7 +39,7 @@ class SourceScanner:
             return hash_md5.hexdigest()
         except (OSError, IOError):
             return None
-    
+
     @staticmethod
     def save_hash_file(source_path, files):
         """Save the hash file to the target path."""
@@ -49,7 +49,7 @@ class SourceScanner:
         os.makedirs(source_path, exist_ok=True)
         with open(hash_file_path, "wb") as f:
             pickle.dump(files, f)
-            
+
     def get_hash_file(self):
         """Get the path to the hash file."""
         hash_file_path = os.path.join(self.source_path, FILE_HASH_FILE)
@@ -59,5 +59,3 @@ class SourceScanner:
                 print(f"Loaded {len(self.files)} files from hash file.")
                 return self.files
         return set()
-        
-    

@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class Device(ABC):
-
     def __init__(self, udid: str, connection_type: str = "usb"):
         self.type = None
         self.udid = udid
@@ -12,6 +11,7 @@ class Device(ABC):
     """
     The Device interface declares a set of methods for managing devices.
     """
+
     @abstractmethod
     async def connect(self):
         """

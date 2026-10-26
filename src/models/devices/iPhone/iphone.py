@@ -10,9 +10,8 @@ from helper.file_helper_functions import (
     is_media_file,
     is_video_file,
 )
-
 from models.dataclass.data_class import DirectoryOrderConfig
-from models.devices import Device
+from models.devices.device import Device
 from models.devices.device_type import DeviceType
 from models.devices.iPhone.metadata_extractor import MetaDataExtractor
 from models.source_scanner.source_scanner import SourceScanner
@@ -54,9 +53,7 @@ class IphoneDevice(Device):
 
         length = 0
         for folder in folders:
-            files_in_folder = await afc.listdir(
-                f"{MEDIA_FOLDER}/{folder}"
-            )
+            files_in_folder = await afc.listdir(f"{MEDIA_FOLDER}/{folder}")
             length += len(files_in_folder)
 
             for f in files_in_folder:
@@ -71,8 +68,7 @@ class IphoneDevice(Device):
                     else:
                         prefix = f"{MEDIA_FOLDER}/{folder}/{name}"
                         self.registered_paths = [
-                            p for p in self.registered_paths
-                            if not p.startswith(prefix)
+                            p for p in self.registered_paths if not p.startswith(prefix)
                         ]
 
                 self.unique_names.add(name)
@@ -110,7 +106,7 @@ class IphoneDevice(Device):
         # Reuse cached AFC connection to avoid expensive new connections per file
         if self._afc_cache is None:
             self._afc_cache = await self.open_afc()
-        
+
         try:
             await self._afc_cache.pull(
                 source_path,
@@ -135,8 +131,7 @@ class IphoneDevice(Device):
     def get_device_name(self):
         return self.lock_down.all_values.get("DeviceName")
 
-    async def _extract_metadata_from_device_file(self,
-                                                 source_path: str) -> dict:
+    async def _extract_metadata_from_device_file(self, source_path: str) -> dict:
         tmp_file_path = None
         try:
             with tempfile.NamedTemporaryFile(
@@ -165,9 +160,9 @@ class IphoneDevice(Device):
     def get_exif_from_video(self, data: bytes, order: int = 1) -> dict:
         return self.metadata_extractor.get_exif_from_video(data, order)
 
-    def get_exif_from_media_file(self,
-                                 source_path,
-                                 directory_order_config: DirectoryOrderConfig):
+    def get_exif_from_media_file(
+        self, source_path, directory_order_config: DirectoryOrderConfig
+    ):
         return self.metadata_extractor.get_exif_from_media_file(
             source_path, directory_order_config
         )
